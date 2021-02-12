@@ -50,9 +50,7 @@ class Model:
             delta = self._dynamics.apply(model_params, state, action)
             delta_true = next_state - state
             loss = 0.5 * ((delta_true - delta.loc) ** 2).sum(axis=1)
-
-            # pred_reward = ((total_reward - v_reward(state + delta.loc, action)) ** 2).mean()
-            return loss.mean()  # + config.l1_penalty * utils.l1_penalty(model_params)#
+            return loss.mean()
 
         value, grad = jax.value_and_grad(loss_fn)(model_params)
 

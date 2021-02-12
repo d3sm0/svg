@@ -1,13 +1,12 @@
 import importlib
 from typing import NamedTuple
-from typing import Text
 
 import gym
 import jax
 import jax.numpy as jnp
 
-from config import config
-from utils import RunningMeanStd
+
+# from utils import RunningMeanStd
 
 
 class Wrapper(gym.Wrapper):
@@ -26,11 +25,11 @@ class Wrapper(gym.Wrapper):
         self.returns += r
         self.key, key = jax.random.split(self.key)
         model_noise = jnp.zeros_like(next_state)
-        #model_noise = jax.random.normal(key) * config.model_std
-        #next_state = next_state #+ model_noise
+        # model_noise = jax.random.normal(key) * config.model_std
+        # next_state = next_state #+ model_noise
         # next_state = jax.lax.clamp(-10., next_state, 10.)
         # next_state = (next_state - 10.) / 20
-        #self.unwrapped.state = next_state
+        # self.unwrapped.state = next_state
         info = {"model_noise": model_noise, "returns": self.returns, "steps": self.t, **_info}
         if self.t >= self.horizon or d is True:
             d = True
@@ -73,11 +72,11 @@ class Normalize(gym.Wrapper):
         # action = np.array(action)
         # self.action_rms.update(action)
         # action  = self.action_rms.normalize(action)
-        #self.ob_rms.update(self.unwrapped.state)
+        # self.ob_rms.update(self.unwrapped.state)
         obs, rews, news, infos = super(Normalize, self).step(action)
         # self.ret = self.ret * self.gamma + rews
-        #obs = obs / (jnp.linalg.norm(obs) + 1e-6)
-        #obs = self._obfilt(obs)
+        # obs = obs / (jnp.linalg.norm(obs) + 1e-6)
+        # obs = self._obfilt(obs)
         # if self.ret_rms:
         #    self.ret_rms.update(self.ret)
         #    rews = jnp.clip(rews / jnp.sqrt(self.ret_rms.var + self.epsilon), -self.cliprew, self.cliprew)
@@ -107,12 +106,8 @@ class EnvSpec(NamedTuple):
 def make_env(key, env_id="", horizon=100):
     fname = f"envs.{env_id}"
     Env = getattr(importlib.import_module(fname), env_id.capitalize())
-    env = Normalize(Env())
+    env = Env()
     return Wrapper(env, key, horizon=horizon)
-
-
-def get_num_actions(key, env_id: Text = "") -> EnvSpec:
-    env_id = make_env(key, env_id)
 
 
 def _test_env():

@@ -1,17 +1,10 @@
-from typing import NamedTuple
-
+from config import config
 from flax import linen
 from jax import numpy as jnp
 
-from config import config
+from utils import Density
 
 
-class Density(NamedTuple):
-    loc: jnp.zeros = 0.
-    scale: jnp.zeros = 0.
-
-
-# TODO remove flax move to haiku
 class Actor(linen.Module):
     """Class defining the actor-critic model."""
 
@@ -27,15 +20,10 @@ class Actor(linen.Module):
     def __call__(self, x) -> Density:
         h = self.fc(x)
         h = linen.tanh(h)
-        # h = self.fc1(h)
-        # h = linen.tanh(h)
-        # h = self.fc2(h)
         h = self.b1(h)
         out = self.out(h)
         mu, log_sigma = jnp.split(out, 2, -1)
         sigma = linen.softplus(log_sigma) + 1e-3
-        # mu = jnp.tanh(mu)
-        # sigma = jnp.ones_like(mu) * self.std
         return Density(mu, sigma)
 
 
@@ -62,21 +50,13 @@ class Dynamics(linen.Module):
 
     def setup(self):
         self.fc = linen.Dense(self.h_dim)
-        # self.conv = linen.ConvTranspose(features=16, kernel_size=3)
         self.b = ResNetBlock()
         self.out = linen.Dense(2 * self.state_dim)
-        # self.norm = linen.LayerNorm()
-        # self.norm = linen.BatchNorm()
 
     def __call__(self, state, action):
         x = jnp.concatenate((state, action), axis=-1)
-        # h = self.norm(x)
         h = self.fc(x)
         h = linen.tanh(h)
-        # h = self.fc1(h)
-        # h = linen.relu(h)
-        # h = self.fc2(h)
-        # h = linen.relu(h)
         h = self.b(h)
         out = self.out(h)
         mu, _ = jnp.split(out, 2, -1)
