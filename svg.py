@@ -1,11 +1,12 @@
+#from typing import NamedTuple
+#
+#import jax
+#from jax import numpy as jnp
+#
+#import utils
+#from agent import Actor
+#from config import config
 from typing import NamedTuple
-
-import jax
-from jax import numpy as jnp
-
-import utils
-from agent import Actor
-from config import config
 
 
 class ModelTransition(NamedTuple):

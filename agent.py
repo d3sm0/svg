@@ -1,10 +1,10 @@
 from typing import NamedTuple
 
-from flax import linen
-from jax import numpy as jnp
-
-from config import config
-
+#from flax import linen
+#from jax import numpy as jnp
+#
+#from config import config
+#
 
 class Density(NamedTuple):
     loc: jnp.zeros = 0.
