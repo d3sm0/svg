@@ -57,6 +57,7 @@ class Pendulum(classic_control.PendulumEnv):
         self.state = torch.tensor((1., 0., 0.))
         return self.state
 
+    @torch.no_grad()
     def step(self, action):
         action = torch.clamp(action, -1., 1.)
         self.last_u = action
