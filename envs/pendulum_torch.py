@@ -53,13 +53,10 @@ class Pendulum(classic_control.PendulumEnv):
         self._r = _reward
 
     def reset(self):
-        self.t = 0
-        self.state = torch.tensor((1., 0., 0.))
+        self.state = torch.tensor((-1., 0.0, 0.))
         return self.state
 
-    @torch.no_grad()
     def step(self, action):
-        action = torch.clamp(action, -1., 1.)
         self.last_u = action
         reward = self._r(self.state, action)
         next_state = self._f(self.state, action)
@@ -68,8 +65,4 @@ class Pendulum(classic_control.PendulumEnv):
         th = th + th_dot * self.dt
         next_state = _th_to_obs(th, th_dot)
         self.state = next_state
-        done = False
-        if self.t > self.horizon:
-            done = True
-        self.t += 1
-        return next_state, reward, done, {}
+        return next_state, reward, False, {}
