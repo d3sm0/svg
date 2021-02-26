@@ -18,7 +18,7 @@ class Wrapper(gym.Wrapper):
         self.horizon = horizon
         self.action_bound = 1.
         self._r = env._r
-        self._f = env._f
+        #self._f = env._f
 
     def step(self, action):
         action = torch.clamp(action, -self.action_bound, self.action_bound)
@@ -32,7 +32,7 @@ class Wrapper(gym.Wrapper):
         if self.t >= self.horizon or d is True:
             d = True
         self.t += 1
-        return next_state, r, d, info
+        return torch.tensor(next_state), torch.tensor(r), d, info
 
     def get_state(self):
         self.returns = 0
@@ -44,7 +44,7 @@ class Wrapper(gym.Wrapper):
         out = super(Wrapper, self).reset()
         self.returns = 0
         self.t = 0
-        # out = torch.tensor(out, dtype=torch.float32)
+        out = torch.tensor(out, dtype=torch.float32)
         return out
 
     def get_initial_state(self):

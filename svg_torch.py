@@ -10,14 +10,25 @@ import torch.utils.tensorboard as tb
 
 from buffer import Buffer
 from envs import pendulum_torch
+from typing import NamedTuple
+
 
 # TODO substitute with proper config object
 config = SimpleNamespace(use_oracle=False, initial_steps=0,
                          policy_lr=3e-3, model_lr=1e-3,
                          train_on_buffer=False,
                          horizon=200,
-                         max_steps=int(1e4)
+                         max_steps=int(1e4),
+                         envname="pendulum"
                          )
+
+
+class Transition(NamedTuple):
+    s: torch.tensor
+    a: torch.tensor
+    r: torch.tensor
+    s1: torch.tensor
+    done: torch.tensor
 
 
 class Trajectory:
@@ -52,15 +63,20 @@ class Trajectory:
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_dim, action_dim, h_dim=32):
-        super(Policy, self).__init__()
+    def __init__(self, obs_dim, action_dim, h_dim=32, mu_activation=None):
+        super().__init__()
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.mu_activation = mu_activation
         self.fc = nn.Sequential(*[nn.Linear(obs_dim, h_dim), nn.Tanh(), nn.Linear(h_dim, h_dim), nn.Tanh()])
         self.out = nn.Linear(h_dim, 2 * action_dim)
 
     def forward(self, s):
         h = self.fc(s)
         out = self.out(h)
-        mu, sigma = torch.split(out, 1, -1)
+        mu, sigma = torch.split(out, self.action_dim, -1)
+        if self.mu_activation != None:
+            mu = self.mu_activation(mu)
         sigma = F.softplus(sigma)
         return mu, sigma
 
@@ -114,15 +130,12 @@ def get_grad_norm(parameters):
 
 
 def recreate_transition(transition, dynamics, policy):
-    # TODO @proceduralia use tuple here and remove noise if not used
-    s, a, r, s1, d, *_ = transition
-
-    s1_hat, sigma = dynamics.f(s, a)
-    eta = (s1 - s1_hat) / sigma
+    s1_hat, sigma = dynamics.f(transition.s, transition.a)
+    eta = (transition.s1 - s1_hat) / sigma
     next_state = s1_hat + sigma * eta.detach()
 
-    a_hat, sigma = policy(s)
-    eps = (a - a_hat) / sigma
+    a_hat, sigma = policy(transition.s)
+    eps = (transition.a - a_hat) / sigma
     action = a_hat + sigma * eps.detach()
     return action, next_state
 
@@ -160,23 +173,23 @@ def generate_episode(env, policy, gamma=0.99):
     while not done:
         action, action_noise = policy.sample(state)
         next_state, reward, done, info = env.step(action)
-        trajectory.append((state, action, reward, next_state, done, action_noise, 0.))
+        trajectory.append(Transition(state, action, reward, next_state, done))
         state = next_state
         total_reward += gamma ** t * reward
         t += 1
     return trajectory, total_reward
 
 
-# TODO clean this
 def train_model_on_traj(dynamics, traj, model_optim, batch_size=64):
-    loss = 0.
+    total_loss = 0.
     for (state, action, next_state) in traj.sample(batch_size=batch_size, shuffle=True):
         model_optim.zero_grad()
         mu, _ = dynamics(state, action)
         loss = nn.functional.mse_loss(mu, next_state)
         loss.backward()
         model_optim.step()
-    return loss
+        total_loss += loss
+    return total_loss/(len(traj)/batch_size)
 
 
 def train_model_on_buffer(dynamics, buffer, model_optim, batch_size=64, n_batches=16):
@@ -197,17 +210,28 @@ def train_model_on_buffer(dynamics, buffer, model_optim, batch_size=64, n_batche
 
 
 from envs import torch_envs
+from envs.zika_torch import ZikaEnv
 
 
 def main():
     torch.manual_seed(0)
-    env = torch_envs.Wrapper(pendulum_torch.Pendulum(), horizon=config.horizon)
-    policy = Policy(3, 1, h_dim=4)
+    if config.envname == 'zika':
+        env = ZikaEnv()
+        gamma = 0.5
+        policy = Policy(env.observation_space.shape[0], env.action_space.shape[0],
+                        h_dim=16, mu_activation=torch.sigmoid)
+    elif config.envname == 'pendulum':
+        env = torch_envs.Wrapper(pendulum_torch.Pendulum(), horizon=config.horizon)
+        gamma = 0.99
+        policy = Policy(env.observation_space.shape[0], env.action_space.shape[0], h_dim=4)
+
     if config.use_oracle:
+        if config.envname != "pendulum":
+            raise Exception("Oracle can only be used with pendulum")
         dynamics = RealDynamics(env)
     else:
         if config.train_on_buffer:
-            buffer = Buffer(3, 1, 2048)
+            buffer = Buffer(env.observation_space.shape[0], env.action_space.shape[0], 2048)
         dynamics = LearnedDynamics(env)
 
     pi_optim = optim.SGD(policy.parameters(), lr=config.policy_lr)
@@ -216,9 +240,9 @@ def main():
     dtm = datetime.now().strftime("%d-%H-%M-%S-%f")
     writer = tb.SummaryWriter(log_dir=f"logs/{dtm}")
     for epoch in range(int(config.max_steps)):
-        traj, env_reward = generate_episode(env, policy)
+        traj, env_reward = generate_episode(env, policy, gamma=gamma)
         writer.add_scalar("env/return", env_reward, global_step=epoch)
-        writer.add_scalar("env/action", float(traj[0][1]), global_step=epoch)
+        writer.add_scalar("env/action", float(torch.mean(traj[0].a)), global_step=epoch)
         if not config.use_oracle:
             if config.train_on_buffer:
                 buffer.add_trajectory(traj)
@@ -228,7 +252,7 @@ def main():
             writer.add_scalar("train/model_loss", model_loss, global_step=epoch)
 
         if epoch > config.initial_steps or config.use_oracle:
-            ret, grad_norm = train(dynamics, policy, pi_optim, traj)
+            ret, grad_norm = train(dynamics, policy, pi_optim, traj, gamma=gamma)
             writer.add_scalar("train/return", ret, global_step=epoch)
             writer.add_scalar("train/grad_norm", grad_norm, global_step=epoch)
 
