@@ -16,7 +16,9 @@ from typing import NamedTuple
 # TODO substitute with proper config object
 config = SimpleNamespace(use_oracle=False, initial_steps=0,
                          policy_lr=3e-3, model_lr=1e-3,
-                         train_on_buffer=False,
+                         reward_lr=1e-3,
+                         train_on_buffer=True,
+                         learn_reward=False,
                          horizon=200,
                          max_steps=int(1e4),
                          envname="pendulum"
@@ -106,13 +108,21 @@ class RealDynamics:
 
 
 class LearnedDynamics(nn.Module):
-    def __init__(self, env, h_dim=32):
+    def __init__(self, env, h_dim=32, learn_reward=True):
         super().__init__()
-        # TODO @proecduralia this is a hack. It will break with new env
-        self.r = env._r
         obs_dim = env.observation_space.shape[0]
         action_dim = env.action_space.shape[0]
-        self.fc = nn.Sequential(*[nn.Linear(obs_dim + action_dim, h_dim), nn.ELU()])
+        if learn_reward:
+            class LearnedReward(nn.Module):
+                def __init__(self):
+                    super().__init__()
+                    self.out = nn.Sequential(nn.Linear(obs_dim + action_dim, h_dim), nn.LeakyReLU(), nn.Linear(h_dim, 1))
+                def forward(self, s, a):
+                    return self.out(torch.cat((s, a), dim=-1)).view(-1)
+            self.r = LearnedReward()
+        else:
+            self.r = env._r
+        self.fc = nn.Sequential(*[nn.Linear(obs_dim + action_dim, h_dim), nn.LeakyReLU()])
         self.out = nn.Linear(h_dim, obs_dim)
         self.std = 1
 
@@ -209,6 +219,22 @@ def train_model_on_buffer(dynamics, buffer, model_optim, batch_size=64, n_batche
     return total_loss / n_batches
 
 
+def train_reward_on_buffer(dynamics, buffer, reward_optim, batch_size=64, n_batches=16):
+    buffer_it = buffer.train_batches_reward(batch_size)
+    total_loss = 0
+    for _ in range(n_batches):
+        try:
+            state, action, reward = next(buffer_it)
+        except StopIteration:
+            break
+        reward_optim.zero_grad()
+        loss = nn.functional.mse_loss(dynamics.r(state, action), reward)
+        total_loss += loss
+        loss.backward()
+        reward_optim.step()
+    return total_loss / n_batches
+
+
 from envs import torch_envs
 from envs.zika_torch import ZikaEnv
 
@@ -223,19 +249,21 @@ def main():
     elif config.envname == 'pendulum':
         env = torch_envs.Wrapper(pendulum_torch.Pendulum(), horizon=config.horizon)
         gamma = 0.99
-        policy = Policy(env.observation_space.shape[0], env.action_space.shape[0], h_dim=4)
+        policy = Policy(env.observation_space.shape[0], env.action_space.shape[0],
+                        h_dim=4, mu_activation=torch.tanh)
 
     if config.use_oracle:
         if config.envname != "pendulum":
             raise Exception("Oracle can only be used with pendulum")
         dynamics = RealDynamics(env)
     else:
-        if config.train_on_buffer:
+        if config.learn_reward or config.train_on_buffer:
             buffer = Buffer(env.observation_space.shape[0], env.action_space.shape[0], 2048)
-        dynamics = LearnedDynamics(env)
+        dynamics = LearnedDynamics(env, learn_reward=config.learn_reward)
 
     pi_optim = optim.SGD(policy.parameters(), lr=config.policy_lr)
     model_optim = None if config.use_oracle else optim.SGD(dynamics.parameters(), lr=config.model_lr)
+    reward_optim = None if not config.learn_reward else optim.SGD(dynamics.r.parameters(), lr=config.reward_lr)
 
     dtm = datetime.now().strftime("%d-%H-%M-%S-%f")
     writer = tb.SummaryWriter(log_dir=f"logs/{dtm}")
@@ -244,11 +272,15 @@ def main():
         writer.add_scalar("env/return", env_reward, global_step=epoch)
         writer.add_scalar("env/action", float(torch.mean(traj[0].a)), global_step=epoch)
         if not config.use_oracle:
-            if config.train_on_buffer:
+            if config.learn_reward or config.train_on_buffer:
                 buffer.add_trajectory(traj)
+            if config.train_on_buffer:
                 model_loss = train_model_on_buffer(dynamics, buffer, model_optim)
             else:
                 model_loss = train_model_on_traj(dynamics, traj, model_optim)
+            if config.learn_reward:
+                reward_loss = train_reward_on_buffer(dynamics, buffer, reward_optim)
+                writer.add_scalar("train/reward_loss", reward_loss, global_step=epoch)
             writer.add_scalar("train/model_loss", model_loss, global_step=epoch)
 
         if epoch > config.initial_steps or config.use_oracle:

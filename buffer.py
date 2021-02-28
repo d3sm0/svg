@@ -117,9 +117,38 @@ class Buffer:
             states = self.states[batch_indices]
             actions = self.actions[batch_indices]
             state_deltas = self.state_deltas[batch_indices]
-            next_states =  states + state_deltas
+            next_states = states + state_deltas
 
             yield states, actions, next_states
+
+    def train_batches_reward(self, batch_size):
+        """
+        return an iterator of batches
+        Args:
+            batch_size: number of samples to be returned
+        Returns:
+            state of size (n_samples, d_state)
+            action of size (n_samples, d_action)
+            reward of size (n_samples,)
+        """
+        num = len(self)
+        indices = np.random.permutation(range(num))
+
+        for i in range(0, num, batch_size):
+            j = min(num, i + batch_size)
+
+            if (j - i) < batch_size and i != 0:
+                # drop the last incomplete batch
+                return
+
+            batch_size = j - i
+            batch_indices = indices[i:j]
+
+            states = self.states[batch_indices]
+            actions = self.actions[batch_indices]
+            rewards = self.rewards[batch_indices]
+
+            yield states, actions, rewards
 
     def __len__(self):
         return self.size if self.is_full else self.ptr
