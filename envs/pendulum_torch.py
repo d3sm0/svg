@@ -11,14 +11,15 @@ def angle_normalize(x):
 
 
 def _obs_to_th(obs):
-    cos_th, sin_th, thdot = obs
-    th = torch.arctan(sin_th / cos_th)
-    return th.reshape((1,)), thdot.reshape((1,))
+    return obs
+    # cos_th, sin_th, thdot = obs
+    # th = torch.arctan(sin_th / cos_th)
+    # return th.reshape((1,)), thdot.reshape((1,))
 
 
 def _th_to_obs(th, thdot):
-    cos_th, sin_th = torch.cos(th), torch.sin(th)
-    next_state = torch.cat([cos_th, sin_th, thdot])
+    # cos_th, sin_th = torch.cos(th), torch.sin(th)
+    next_state = torch.tensor([th, thdot], dtype=torch.float32)
     return next_state
 
 
@@ -26,7 +27,7 @@ class Pendulum(classic_control.PendulumEnv):
 
     def __init__(self, horizon=200):
         super(Pendulum, self).__init__()
-        high = np.array([1.0, 1.0, self.max_speed])
+        high = np.array([1., self.max_speed])
         self.max_speed = 8.
         self.action_space = gym.spaces.Box(low=-self.max_torque, high=self.max_torque, shape=(1,), dtype=np.float32)
         self.observation_space = gym.spaces.Box(low=-high, high=high, dtype=np.float32)
@@ -53,7 +54,7 @@ class Pendulum(classic_control.PendulumEnv):
         self._r = _reward
 
     def reset(self):
-        self.state = torch.tensor((-1., 0.0, 0.))
+        self.state = torch.tensor((-1.,  0.))
         return self.state
 
     def step(self, action):

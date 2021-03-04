@@ -1,4 +1,7 @@
-import whynot.simulators.zika.environments
+try:
+    import whynot.simulators.zika.environments
+except ImportError:
+    print("please install whynot")
 from .torch_envs import Wrapper
 from dataclasses import fields
 import torch

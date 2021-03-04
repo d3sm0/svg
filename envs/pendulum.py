@@ -1,8 +1,8 @@
 import gym
-import jax
+#import jax
 
 from gym.envs import classic_control
-from jax import numpy as jnp
+#from jax import numpy as jnp
 
 
 @jax.jit

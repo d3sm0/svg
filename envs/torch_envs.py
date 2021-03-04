@@ -61,14 +61,14 @@ def make_env(env_id="lqg", horizon=200):
     # env_id = 'InvertedPendulumSwingupBulletEnv-v0'
     # id = 'CartPoleContinuousBulletEnv-v0'
     # env = gym.make(env_id)
-    import envs.pendulum
-    env = envs.pendulum.Pendulum()
+    import envs.pendulum_torch
+    env = envs.pendulum_torch.Pendulum()
     env = Wrapper(env, horizon=horizon)
     return env
 
 
 def _test_env():
-    env_list = ["acrobot"]  # , "lqg", "pendulum", "quadrotor"]
+    env_list = ["pendulum"]  # , "lqg", "pendulum", "quadrotor"]
 
     # env = monitor.Monitor(env, directory=config.log_dir)
 
@@ -76,7 +76,7 @@ def _test_env():
         env = make_env(env_id)
         env.reset()
         while True:
-            s1, r, d, _ = env.step(env.action_space.sample())
+            s1, r, d, _ = env.step(torch.tensor(env.action_space.sample()))
             env.render()
             if d:
                 break
