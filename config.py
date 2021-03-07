@@ -10,7 +10,7 @@ NUM_PROCS = 1
 sweep_yaml = "sweep.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
-
+seed = 0
 use_cuda = False
 
 mila_tools.register(locals())
@@ -22,5 +22,5 @@ device = torch.device("cuda" if use_cuda else "cpu")
 # esh = """
 # #SBATCH --mem=24GB
 # """
-esh = ""
+esh = "#SBATCH --gres=gpu:0"
 tb = mila_tools.deploy(host=HOST, sweep_yaml=sweep_yaml, extra_slurm_headers=esh, proc_num=NUM_PROCS)
