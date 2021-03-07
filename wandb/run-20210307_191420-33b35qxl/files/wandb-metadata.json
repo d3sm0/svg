@@ -1,0 +1,22 @@
+{
+    "os": "Linux-5.4.0-66-generic-x86_64-with-glibc2.27",
+    "python": "3.8.6",
+    "heartbeatAt": "2021-03-07T18:14:22.842808",
+    "startedAt": "2021-03-07T18:14:20.203233",
+    "docker": null,
+    "cpu_count": 8,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/geralt/code/rl/svg/main.py",
+    "codePath": "main.py",
+    "git": {
+        "remote": "git@github.com:d3sm0/svg.git",
+        "commit": "773be326ebbe6b81d792640f4ad430fbae9adce6"
+    },
+    "email": "simone.totaro@gmail.com",
+    "root": "/home/geralt/code/rl/svg",
+    "host": "roach",
+    "username": "geralt",
+    "executable": "/home/geralt/.venvs/HS-muZero_env/bin/python"
+}

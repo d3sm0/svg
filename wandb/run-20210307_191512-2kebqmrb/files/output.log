@@ -1,0 +1,23 @@
+setting ^RUN_SWEEP=0
+setting ^REMOTE=1
+setting ^NUM_PROCS=1
+setting ^sweep_yaml=False
+setting ^HOST=mila
+setting ^DEBUG=True
+setting ^use_cuda=False
+Saved at 0. Progress:0.00
+/home/geralt/.venvs/HS-muZero_env/lib/python3.8/site-packages/torch/autograd/__init__.py:130: UserWarning: CUDA initialization: Found no NVIDIA driver on your system. Please check that you have an NVIDIA GPU and installed a driver from http://www.nvidia.com/Download/index.aspx (Triggered internally at  /pytorch/c10/cuda/CUDAFunctions.cpp:100.)
+  Variable._execution_engine.run_backward(
+Saved at 100. Progress:0.01
+Traceback (most recent call last):
+  File "/home/geralt/code/rl/svg/main.py", line 105, in <module>
+    main()
+  File "/home/geralt/code/rl/svg/main.py", line 56, in main
+    run(dynamics, env, model_optim, pi_optim, policy, writer)
+  File "/home/geralt/code/rl/svg/main.py", line 96, in run
+    agent_loss = train(dynamics, agent, pi_optim, trajectory, gamma=env.gamma, opt_steps=agent_config.opt_steps)
+  File "/home/geralt/code/rl/svg/svg_torch.py", line 88, in train
+    total_return, extra = unroll(dynamics, policy, traj, gamma=gamma, action_reg=1.)
+  File "/home/geralt/code/rl/svg/svg_torch.py", line 82, in unroll
+    return total_reward/len(traj), {"agent/pi_scale": sigma_avg, "agent/eta_scale": eta_avg}
+KeyboardInterrupt

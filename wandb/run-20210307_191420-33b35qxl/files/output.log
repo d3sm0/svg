@@ -1,0 +1,31 @@
+setting ^RUN_SWEEP=0
+setting ^REMOTE=1
+setting ^NUM_PROCS=1
+setting ^sweep_yaml=False
+setting ^HOST=mila
+setting ^DEBUG=True
+setting ^use_cuda=False
+Saved at 0. Progress:0.00
+Traceback (most recent call last):
+  File "/snap/pycharm-professional/230/plugins/python/helpers/pydev/pydevd.py", line 1477, in _exec
+    pydev_imports.execfile(file, globals, locals)  # execute the script
+  File "/snap/pycharm-professional/230/plugins/python/helpers/pydev/_pydev_imps/_pydev_execfile.py", line 18, in execfile
+    exec(compile(contents+"\n", file, 'exec'), glob, loc)
+  File "/home/geralt/code/rl/svg/main.py", line 105, in <module>
+    main()
+  File "/home/geralt/code/rl/svg/main.py", line 56, in main
+    run(dynamics, env, model_optim, pi_optim, policy, writer)
+  File "/home/geralt/code/rl/svg/main.py", line 68, in run
+    torch.save(agent, os.path.join(writer.tensorboard.log_dir, f"latest.pt"))
+AttributeError: 'SummaryWriter' object has no attribute 'log_dir'
+Python 3.8.6 (default, Oct  6 2020, 03:22:36) 
+Type 'copyright', 'credits' or 'license' for more information
+IPython 7.19.0 -- An enhanced Interactive Python. Type '?' for help.
+PyDev console: using IPython 7.19.0
+
+Traceback (most recent call last):
+  File "/home/geralt/.venvs/HS-muZero_env/lib/python3.8/site-packages/IPython/core/interactiveshell.py", line 3418, in run_code
+    exec(code_obj, self.user_global_ns, self.user_ns)
+  File "<ipython-input-1-a4ee771f139c>", line 1, in <module>
+    wan
+NameError: name 'wan' is not defined

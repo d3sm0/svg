@@ -1,0 +1,40 @@
+wandb_version: 1
+
+^DEBUG:
+  desc: null
+  value: 'True'
+^HOST:
+  desc: null
+  value: mila
+^NUM_PROCS:
+  desc: null
+  value: '1'
+^REMOTE:
+  desc: null
+  value: '1'
+^RUN_SWEEP:
+  desc: null
+  value: '0'
+^sweep_yaml:
+  desc: null
+  value: 'False'
+^use_cuda:
+  desc: null
+  value: 'False'
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.10.21
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.8.6
+    t:
+      1:
+      - 1
+      2:
+      - 1
+      4: 3.8.6
+      5: 0.10.21
+      8:
+      - 5
