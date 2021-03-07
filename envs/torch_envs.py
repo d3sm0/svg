@@ -1,7 +1,10 @@
 from typing import NamedTuple
 
 import gym
+import numpy as np
 import torch
+
+from . import ENV_IDS
 
 
 class EnvSpec(NamedTuple):
@@ -9,22 +12,33 @@ class EnvSpec(NamedTuple):
     action_space: int
 
 
+class ActionBound(NamedTuple):
+    low: float
+    high: float
+
+
+def _get_action_bound(bound: gym.spaces.Box):
+    assert np.isfinite(bound.low).all() and np.isfinite(bound.high).all()
+    # torch.clamp does not seem to support vector
+    return ActionBound(bound.low.max(), bound.high.max())
+
+
 class Wrapper(gym.Wrapper):
-    def __init__(self, env, horizon):
+    def __init__(self, env, horizon, gamma=0.99):
         super(Wrapper, self).__init__(env)
         self.env_spec = EnvSpec(self.observation_space.shape[0], self.action_space.shape[0])
-        self.returns = 0
-        self.t = 0
+        self._action_bound = _get_action_bound(self.env.action_space)
         self.horizon = horizon
-        self.action_bound = 1.
-        self._r = env._r
-        #self._f = env._f
+        if hasattr(env, "gamma"):
+            gamma = gamma
+        self.gamma = gamma
+        self.returns = None
+        self.t = None
 
     def step(self, action):
-        action = torch.clamp(action, -self.action_bound, self.action_bound)
+        action = torch.clamp(action, self._action_bound.low, self._action_bound.high)
         action = action.numpy()
-        next_state, r, d, _info = super(Wrapper, self).step(action)
-        self.returns += r
+        next_state, r, d, _ = super(Wrapper, self).step(action)
         info = {"env/reward": r,
                 "env/avg_reward": self.returns / (self.t + 1),
                 "env/returns": self.returns,
@@ -32,37 +46,40 @@ class Wrapper(gym.Wrapper):
         if self.t >= self.horizon or d is True:
             d = True
         self.t += 1
-        return torch.tensor(next_state), torch.tensor(r), d, info
+        self.returns += r
+        return *self._to_torch(next_state, r, d), info
 
-    def get_state(self):
-        self.returns = 0
-        if self.t == self.horizon or self.t == 0:
-            self.reset()
-        return self.unwrapped.state, 0, False, {}
+    @staticmethod
+    def _to_torch(s, r, d):
+        if not isinstance(s, torch.Tensor):
+            s = torch.tensor(s, dtype=torch.float32)
+        if not isinstance(r, torch.Tensor):
+            r = torch.tensor(r, dtype=torch.float32)
+        d = torch.tensor(d, dtype=torch.float32)
+        return s, r, d
 
     def reset(self, **kwargs):
-        out = super(Wrapper, self).reset()
+        state = super(Wrapper, self).reset()
         self.returns = 0
         self.t = 0
-        out = torch.tensor(out, dtype=torch.float32)
-        return out
-
-    def get_initial_state(self):
-        return torch.zeros((self.env_spec.observation_space,)), torch.zeros((self.env_spec.action_space,))
+        return *self._to_torch(state, 0, False), {}
 
 
-def make_env(env_id="lqg", horizon=200):
-    # env = pendulum.Pendulum()
-    import pybullet_envs.gym_pendulum_envs
-    pybullet_envs.gym_pendulum_envs.InvertedDoublePendulumBulletEnv()
-
+def _make_bullet_env():
+    raise NotImplementedError("WIP")
     # import pybullet_envs
     # pybullet_envs.registry
     # env_id = 'InvertedPendulumSwingupBulletEnv-v0'
     # id = 'CartPoleContinuousBulletEnv-v0'
-    # env = gym.make(env_id)
-    import envs.pendulum_torch
-    env = envs.pendulum_torch.Pendulum()
+
+    import pybullet_envs.gym_pendulum_envs
+    pybullet_envs.gym_pendulum_envs.InvertedDoublePendulumBulletEnv()
+
+
+def make_env(env_id="lqg", horizon=200):
+    assert env_id in ENV_IDS, f"env_id:{env_id} not in  {ENV_IDS}."
+    env = gym.make(env_id)
+    assert hasattr(env, "reward"), "Env must expose reward_fn for SVG"
     env = Wrapper(env, horizon=horizon)
     return env
 

@@ -1,35 +1,15 @@
 import operator
-from datetime import datetime
-from types import SimpleNamespace
+from typing import NamedTuple
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import torch.utils.tensorboard as tb
-
-from buffer import Buffer
-from envs import pendulum_torch
-from typing import NamedTuple
-
-
-# TODO substitute with proper config object
-config = SimpleNamespace(use_oracle=False, initial_steps=0,
-                         policy_lr=3e-3, model_lr=1e-3,
-                         reward_lr=1e-3,
-                         train_on_buffer=True,
-                         learn_reward=False,
-                         horizon=200,
-                         max_steps=int(1e4),
-                         envname="pendulum"
-                         )
 
 
 class Transition(NamedTuple):
-    s: torch.tensor
-    a: torch.tensor
-    r: torch.tensor
-    s1: torch.tensor
+    state: torch.tensor
+    action: torch.tensor
+    reward: torch.tensor
+    next_state: torch.tensor
     done: torch.tensor
 
 
@@ -40,14 +20,17 @@ class Trajectory:
     def __getitem__(self, item):
         return self._data[item]
 
-    def append(self, transition):
-        self._data.append(transition)
-
     def __len__(self):
         return len(self._data)
 
     def __iter__(self):
         return iter(self._data)
+
+    def __repr__(self):
+        return f"N:{self.__len__()}"
+
+    def append(self, transition):
+        self._data.append(transition)
 
     def sample(self, batch_size, shuffle=False):
         idxs = torch.arange(self.__len__())
@@ -61,233 +44,89 @@ class Trajectory:
             s = torch.stack(s)
             a = torch.stack(a)
             s1 = torch.stack(s1)
-            yield s, a, s1
-
-
-class Policy(nn.Module):
-    def __init__(self, obs_dim, action_dim, h_dim=32, mu_activation=None):
-        super().__init__()
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-        self.mu_activation = mu_activation
-        self.fc = nn.Sequential(*[nn.Linear(obs_dim, h_dim), nn.Tanh(), nn.Linear(h_dim, h_dim), nn.Tanh()])
-        self.out = nn.Linear(h_dim, 2 * action_dim)
-
-    def forward(self, s):
-        h = self.fc(s)
-        out = self.out(h)
-        mu, sigma = torch.split(out, self.action_dim, -1)
-        if self.mu_activation != None:
-            mu = self.mu_activation(mu)
-        sigma = F.softplus(sigma)
-        return mu, sigma
-
-    @torch.no_grad()
-    def sample(self, s):
-        mu, sigma = self(s)
-        eps = torch.randn(mu.shape)
-        a = (mu + sigma * eps)
-        return a, eps
-
-    def rsample(self, s):
-        mu, sigma = self(s)
-        eps = torch.randn(mu.shape)
-        a = (mu + sigma * eps)
-        return a, eps
-
-
-class RealDynamics:
-    def __init__(self, env):
-        self._f = env._f
-        self.r = env._r
-        self.std = 1
-
-    def f(self, s, a):
-        mu, sigma = self._f(s, a), self.std
-        return mu, sigma
-
-
-class LearnedDynamics(nn.Module):
-    def __init__(self, env, h_dim=32, learn_reward=True):
-        super().__init__()
-        obs_dim = env.observation_space.shape[0]
-        action_dim = env.action_space.shape[0]
-        if learn_reward:
-            class LearnedReward(nn.Module):
-                def __init__(self):
-                    super().__init__()
-                    self.out = nn.Sequential(nn.Linear(obs_dim + action_dim, h_dim), nn.LeakyReLU(), nn.Linear(h_dim, 1))
-                def forward(self, s, a):
-                    return self.out(torch.cat((s, a), dim=-1)).view(-1)
-            self.r = LearnedReward()
-        else:
-            self.r = env._r
-        self.fc = nn.Sequential(*[nn.Linear(obs_dim + action_dim, h_dim), nn.LeakyReLU()])
-        self.out = nn.Linear(h_dim, obs_dim)
-        self.std = 1
-
-    def forward(self, s, a):
-        h = self.fc(torch.cat((s, a), dim=-1))
-        mu = self.out(h) + s
-        return mu, self.std
-
-    def f(self, s, a):
-        return self(s, a)
+            r = torch.stack(r)
+            yield s, a, r, s1
 
 
 def get_grad_norm(parameters):
     return torch.norm(torch.cat([p.grad.flatten() for p in parameters]))
 
 
-def recreate_transition(transition, dynamics, policy):
-    s1_hat, sigma = dynamics.f(transition.s, transition.a)
-    eta = (transition.s1 - s1_hat) / sigma
+def recreate_transition(state, transition, dynamics, policy):
+    a_hat, scale = policy(state)
+    eps = (transition.action - a_hat) / scale
+    action = a_hat + scale * eps.detach()
+
+    s1_hat, sigma = dynamics(state, action)
+    eta = (transition.next_state - s1_hat) / sigma
     next_state = s1_hat + sigma * eta.detach()
 
-    a_hat, sigma = policy(transition.s)
-    eps = (transition.a - a_hat) / sigma
-    action = a_hat + sigma * eps.detach()
-    return action, next_state
+    return action, next_state, (scale, sigma)
 
 
-def unroll(dynamics, policy, traj, gamma=0.99):
+def unroll(dynamics, policy, traj, gamma=0.99, h_detach=0.0, action_reg=1e-1):
     total_reward = 0
-    state = traj[0][0]
+    state = traj[0].state
+    noises = []
     for t, transition in enumerate(traj):
-        action, next_state = recreate_transition(transition, dynamics, policy)
-        reward = dynamics.r(state, action)
-        state = next_state
+        action, next_state, noise = recreate_transition(state, transition, dynamics, policy)
+        noises.append(noise)
+        reward = dynamics.reward(state, action) - action_reg * action.norm() ** 2
         total_reward += (gamma ** t) * reward
-    return total_reward
+        if torch.rand((1,)) < h_detach:
+            next_state.detach_()
+        state = next_state
+    a, b = list(zip(*noises))
+    sigma_avg = torch.tensor(a).mean()
+    eta_avg = torch.tensor(b).mean()
+    return total_reward/len(traj), {"agent/pi_scale": sigma_avg, "agent/eta_scale": eta_avg}
 
 
 def train(dynamics, policy, pi_optim, traj, opt_steps=1, grad_clip=5., gamma=0.99):
-    total_reward = None
-    true_norm = 0
+    total_return = torch.zeros((1,))
     for _ in range(opt_steps):
-        total_reward = unroll(dynamics, policy, traj, gamma=gamma)
+        total_return, extra = unroll(dynamics, policy, traj, gamma=gamma, action_reg=1.)
         pi_optim.zero_grad()
-        (-total_reward).backward()
+        (-total_return).backward()
         true_norm = get_grad_norm(parameters=policy.parameters())
-        nn.utils.clip_grad_value_(policy.parameters(), grad_clip)
+        #nn.utils.clip_grad_value_(policy.parameters(), grad_clip)
         pi_optim.step()
-    return total_reward, true_norm
+    return {"agent/return": total_return, "agent/grad_norm": true_norm, **extra}
 
 
-def generate_episode(env, policy, gamma=0.99):
-    state = env.reset()
+def generate_episode(env, policy):
+    state, _, done, info = env.reset()
     trajectory = Trajectory()
-    done = False
-    total_reward = 0
-    t = 0
     while not done:
-        action, action_noise = policy.sample(state)
+        action = policy.sample(state)
         next_state, reward, done, info = env.step(action)
         trajectory.append(Transition(state, action, reward, next_state, done))
         state = next_state
-        total_reward += gamma ** t * reward
-        t += 1
-    return trajectory, total_reward
+    return trajectory, info
 
 
-def train_model_on_traj(dynamics, traj, model_optim, batch_size=64):
+def train_model_on_traj(traj, dynamics, model_optim, batch_size=64, shuffle=True):
     total_loss = 0.
-    for (state, action, next_state) in traj.sample(batch_size=batch_size, shuffle=True):
-        model_optim.zero_grad()
-        mu, _ = dynamics(state, action)
-        loss = nn.functional.mse_loss(mu, next_state)
-        loss.backward()
-        model_optim.step()
-        total_loss += loss
-    return total_loss/(len(traj)/batch_size)
-
-
-def train_model_on_buffer(dynamics, buffer, model_optim, batch_size=64, n_batches=16):
-    buffer_it = buffer.train_batches(batch_size)
-    total_loss = 0
-    for _ in range(n_batches):
-        try:
-            state, action, next_state = next(buffer_it)
-        except StopIteration:
-            break
-        model_optim.zero_grad()
-        mu, _ = dynamics(state, action)
-        loss = nn.functional.mse_loss(mu, next_state)
-        total_loss += loss
-        loss.backward()
-        model_optim.step()
-    return total_loss / n_batches
-
-
-def train_reward_on_buffer(dynamics, buffer, reward_optim, batch_size=64, n_batches=16):
-    buffer_it = buffer.train_batches_reward(batch_size)
-    total_loss = 0
-    for _ in range(n_batches):
-        try:
-            state, action, reward = next(buffer_it)
-        except StopIteration:
-            break
-        reward_optim.zero_grad()
-        loss = nn.functional.mse_loss(dynamics.r(state, action), reward)
-        total_loss += loss
-        loss.backward()
-        reward_optim.step()
-    return total_loss / n_batches
-
-
-from envs import torch_envs
-from envs.zika_torch import ZikaEnv
-
-
-def main():
-    torch.manual_seed(0)
-    if config.envname == 'zika':
-        env = ZikaEnv()
-        gamma = 0.5
-        policy = Policy(env.observation_space.shape[0], env.action_space.shape[0],
-                        h_dim=16, mu_activation=torch.sigmoid)
-    elif config.envname == 'pendulum':
-        env = torch_envs.Wrapper(pendulum_torch.Pendulum(), horizon=config.horizon)
-        gamma = 0.99
-        policy = Policy(env.observation_space.shape[0], env.action_space.shape[0],
-                        h_dim=4, mu_activation=torch.tanh)
-
-    if config.use_oracle:
-        if config.envname != "pendulum":
-            raise Exception("Oracle can only be used with pendulum")
-        dynamics = RealDynamics(env)
-    else:
-        if config.learn_reward or config.train_on_buffer:
-            buffer = Buffer(env.observation_space.shape[0], env.action_space.shape[0], 2048)
-        dynamics = LearnedDynamics(env, learn_reward=config.learn_reward)
-
-    pi_optim = optim.SGD(policy.parameters(), lr=config.policy_lr)
-    model_optim = None if config.use_oracle else optim.SGD(dynamics.parameters(), lr=config.model_lr)
-    reward_optim = None if not config.learn_reward else optim.SGD(dynamics.r.parameters(), lr=config.reward_lr)
-
-    dtm = datetime.now().strftime("%d-%H-%M-%S-%f")
-    writer = tb.SummaryWriter(log_dir=f"logs/{dtm}")
-    for epoch in range(int(config.max_steps)):
-        traj, env_reward = generate_episode(env, policy, gamma=gamma)
-        writer.add_scalar("env/return", env_reward, global_step=epoch)
-        writer.add_scalar("env/action", float(torch.mean(traj[0].a)), global_step=epoch)
-        if not config.use_oracle:
-            if config.learn_reward or config.train_on_buffer:
-                buffer.add_trajectory(traj)
-            if config.train_on_buffer:
-                model_loss = train_model_on_buffer(dynamics, buffer, model_optim)
-            else:
-                model_loss = train_model_on_traj(dynamics, traj, model_optim)
-            if config.learn_reward:
-                reward_loss = train_reward_on_buffer(dynamics, buffer, reward_optim)
-                writer.add_scalar("train/reward_loss", reward_loss, global_step=epoch)
-            writer.add_scalar("train/model_loss", model_loss, global_step=epoch)
-
-        if epoch > config.initial_steps or config.use_oracle:
-            ret, grad_norm = train(dynamics, policy, pi_optim, traj, gamma=gamma)
-            writer.add_scalar("train/return", ret, global_step=epoch)
-            writer.add_scalar("train/grad_norm", grad_norm, global_step=epoch)
-
-
-if __name__ == '__main__':
-    main()
+    total_reward_loss = 0.
+    total_model_loss = 0.
+    total_grad_norm = 0.
+    for _ in range(5):
+        for (state, action, r, next_state) in traj.sample(batch_size=batch_size, shuffle=shuffle):
+            model_optim.zero_grad()
+            mu, _ = dynamics(state, action)
+            model_loss = 0.5 * (mu - next_state).norm(dim=-1) ** 2
+            reward_loss = 0.5 * (r - dynamics.reward(state, action)) ** 2
+            loss = (model_loss + reward_loss).mean()
+            total_model_loss += model_loss.mean()
+            total_reward_loss += reward_loss.mean()
+            loss.backward()
+            grad_norm = get_grad_norm(dynamics.parameters())
+            total_grad_norm += grad_norm
+            model_optim.step()
+            total_loss += loss
+    denom = (len(traj) * batch_size)
+    return {"model/total_loss": total_loss / denom,
+            "model/model_loss": total_model_loss / denom,
+            "model/reward_loss": total_reward_loss / denom,
+            "model/grad_norm": total_grad_norm / denom
+            }
