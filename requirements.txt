@@ -1,0 +1,6 @@
+gym
+torch
+wandb
+GitPython
+tensorboardX
+git+git://github.com/manuel-delverme/mila_tools.git#egg=mila_tools
