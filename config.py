@@ -3,11 +3,11 @@ import sys
 import mila_tools
 import torch
 
-RUN_SWEEP = 0
+RUN_SWEEP = 1
 REMOTE = 1
 NUM_PROCS = 1
 
-sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
+sweep_yaml = "sweep.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
 

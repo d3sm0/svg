@@ -1,0 +1,13 @@
+[detached HEAD 84f7b29] [CLUSTER] test
+ 2 files changed, 2 insertions(+)
+ create mode 100644 log.out
+ create mode 100644 readme.md
+experiment_id: [CLUSTER] test
+monitor your run on https://wandb.ai/
+/tmp/experiment_buddy-ipaBRvypv5
+bash -l /tmp/experiment_buddy-ipaBRvypv5/run_experiment.sh git@github.com:d3sm0/svg.git main.py 84f7b29e9bd368717454ea3df24a0e0455090c9f
+Running process  0
+[32m[DEPLOY LOG] script realpath: /tmp/experiment_buddy-ipaBRvypv5/run_experiment.sh[0m
+[32m[DEPLOY LOG] scripts home: /tmp/experiment_buddy-ipaBRvypv5[0m
+[32m[DEPLOY LOG] Refreshing modules...[0m
+[32m[DEPLOY LOG] cd /home/mila/s/simone.totaro/experiments/[0m
