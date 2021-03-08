@@ -104,12 +104,12 @@ def generate_episode(env, policy):
     return trajectory, info
 
 
-def train_model_on_traj(traj, dynamics, model_optim, batch_size=64, shuffle=True):
+def train_model_on_traj(buffer, dynamics, model_optim, batch_size=64, shuffle=True, n_epochs=5):
     total_loss = 0.
     total_reward_loss = 0.
     total_model_loss = 0.
     total_grad_norm = 0.
-    for _ in range(5):
+    for traj in buffer.train_batches(batch_size=batch_size, n_epochs=n_epochs):
         for (state, action, r, next_state) in traj.sample(batch_size=batch_size, shuffle=shuffle):
             model_optim.zero_grad()
             mu, _ = dynamics(state, action)
