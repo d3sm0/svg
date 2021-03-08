@@ -7,7 +7,7 @@ import torch.optim as optim
 import config
 from buffer import Buffer
 from envs import torch_envs
-from models import Policy, Dynamics
+from models import Policy, Dynamics, RealDynamics
 from svg_torch import generate_episode, train, train_model_on_traj
 
 agent_config = SimpleNamespace(use_oracle=False,
@@ -22,7 +22,7 @@ agent_config = SimpleNamespace(use_oracle=False,
                                shuffle=True,
                                horizon=100,
                                max_n_samples=int(1e6),
-                               env_id="Pendulum3d-v0",
+                               env_id="PendulumOriginal-v0",
                                seed=0,
                                gamma=0.99,
                                save_every=100,
@@ -40,8 +40,8 @@ def main():
     env = torch_envs.make_env(agent_config.env_id, horizon=agent_config.horizon)
     policy = Policy(env.env_spec.observation_space, env.env_spec.action_space, h_dim=16)
 
-    dynamics = Dynamics(env, learn_reward=agent_config.learn_reward, std=agent_config.model_std)
-    # dynamics = RealDynamics(env)
+    #dynamics = Dynamics(env, learn_reward=agent_config.learn_reward, std=agent_config.model_std)
+    dynamics = RealDynamics(env)
 
     pi_optim = optim.SGD(policy.parameters(), lr=agent_config.policy_lr)
     model_optim = optim.SGD(dynamics.parameters(), lr=agent_config.model_lr)
@@ -76,9 +76,9 @@ def run(dynamics, env, model_optim, pi_optim, agent, writer):
         # if config.learn_reward or config.train_on_buffer:
         # buffer.add_trajectory(trajectory)
 
-        model_loss = train_model_on_traj(buffer, dynamics, model_optim, batch_size=agent_config.batch_size,
-                                         shuffle=agent_config.shuffle)
-        extend(writer, model_loss, n_samples)
+        #model_loss = train_model_on_traj(buffer, dynamics, model_optim, batch_size=agent_config.batch_size,
+                                         #shuffle=agent_config.shuffle)
+        #extend(writer, model_loss, n_samples)
 
         # if config.learn_reward:
         #    reward_loss = train_reward_on_buffer(dynamics, buffer, reward_optim)
