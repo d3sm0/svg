@@ -71,26 +71,25 @@ def unroll(dynamics, policy, traj, gamma=0.99, h_detach=0.0, action_reg=1e-1):
     for t, transition in enumerate(traj):
         action, next_state, noise = recreate_transition(state, transition, dynamics, policy)
         noises.append(noise)
-        reward = dynamics.reward(state, action) - action_reg * action.norm() ** 2
+        # assert
+        reward = dynamics.reward(state, action)  # - action_reg * action.norm() ** 2
         total_reward += (gamma ** t) * reward
-        if torch.rand((1,)) < h_detach:
-            next_state.detach_()
+        # if torch.rand((1,)) < h_detach:
+        #    next_state.detach_()
         state = next_state
     a, b = list(zip(*noises))
     sigma_avg = torch.tensor(a).mean()
     eta_avg = torch.tensor(b).mean()
-    return total_reward/len(traj), {"agent/pi_scale": sigma_avg, "agent/eta_scale": eta_avg}
+    return total_reward / len(traj), {"agent/pi_scale": sigma_avg, "agent/eta_scale": eta_avg}
 
 
-def train(dynamics, policy, pi_optim, traj, opt_steps=1, grad_clip=5., gamma=0.99):
-    total_return = torch.zeros((1,))
-    for _ in range(opt_steps):
-        total_return, extra = unroll(dynamics, policy, traj, gamma=gamma, action_reg=1.)
-        pi_optim.zero_grad()
-        (-total_return).backward()
-        true_norm = get_grad_norm(parameters=policy.parameters())
-        #nn.utils.clip_grad_value_(policy.parameters(), grad_clip)
-        pi_optim.step()
+def train(dynamics, policy, pi_optim, traj, grad_clip=5., gamma=0.99):
+    total_return, extra = unroll(dynamics, policy, traj, gamma=gamma, action_reg=0., h_detach=0.)
+    pi_optim.zero_grad()
+    (-total_return).backward()
+    true_norm = get_grad_norm(parameters=policy.parameters())
+    nn.utils.clip_grad_value_(policy.parameters(), grad_clip)
+    pi_optim.step()
     return {"agent/return": total_return, "agent/grad_norm": true_norm, **extra}
 
 

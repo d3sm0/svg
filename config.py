@@ -1,5 +1,3 @@
-import sys
-
 import mila_tools
 import torch
 
@@ -9,7 +7,7 @@ NUM_PROCS = 1
 
 sweep_yaml = "sweep.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
-DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
+DEBUG = True  # '_pydev_bundle.pydev_log' in sys.modules.keys()
 seed = 0
 use_cuda = False
 

@@ -5,6 +5,11 @@ from torch import nn as nn
 from torch.nn import functional as F
 
 
+def weights_init(m):
+    torch.nn.init.orthogonal_(m.weight)
+    torch.nn.init.zeros_(m.bias)
+
+
 class Policy(nn.Module):
     def __init__(self, obs_dim, action_dim, h_dim=32):
         super().__init__()
@@ -12,6 +17,7 @@ class Policy(nn.Module):
         self.action_dim = action_dim
         self.fc = nn.Sequential(*[nn.Linear(obs_dim, h_dim), nn.Tanh(), nn.Linear(h_dim, h_dim), nn.Tanh()])
         self.out = nn.Linear(h_dim, 2 * action_dim)
+        self.apply(weights_init)
 
     def forward(self, s):
         h = self.fc(s)
@@ -66,6 +72,8 @@ class Dynamics(nn.Module):
             *[nn.Linear(obs_dim + action_dim, h_dim), nn.Tanh(), nn.Linear(h_dim, h_dim), nn.Tanh()])
         self.out = nn.Linear(h_dim, obs_dim)
         self.std = std
+
+        self.apply(weights_init)
 
     def forward(self, s, a):
         h = self.fc(torch.cat((s, a), dim=-1))
