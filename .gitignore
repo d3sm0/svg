@@ -3,3 +3,4 @@ logs
 debug
 wandb
 runs
+__pycache__/
