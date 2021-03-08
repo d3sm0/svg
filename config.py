@@ -1,7 +1,9 @@
 import sys
+from datetime import datetime
 
 import mila_tools
 import torch
+import torch.utils.tensorboard as tb
 
 RUN_SWEEP = 1
 REMOTE = 1
@@ -33,3 +35,6 @@ esh = """
 #SBATCH --get-user-env=L
 """
 tb = mila_tools.deploy(host=HOST, sweep_yaml=sweep_yaml, extra_slurm_headers=esh, proc_num=NUM_PROCS)
+#dtm = datetime.now().strftime("%d-%H-%M-%S-%f")
+#tb = tb.SummaryWriter(log_dir=f"logs/{dtm}")
+#

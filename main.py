@@ -6,7 +6,7 @@ import torch
 import torch.optim as optim
 
 from envs import torch_envs
-from models import Policy, Dynamics
+from models import Policy, Dynamics, RealDynamics
 from svg_torch import generate_episode, train, train_model_on_traj
 
 import config
@@ -21,7 +21,6 @@ agent_config = SimpleNamespace(use_oracle=False,
                                learn_reward=True,
                                shuffle=True,
                                horizon=100,
-                               opt_steps=1,
                                max_n_samples=int(1e6),
                                env_id="Pendulum2d-v0",
                                seed=0,
@@ -41,17 +40,15 @@ def main():
     env = torch_envs.make_env(agent_config.env_id, horizon=agent_config.horizon)
     policy = Policy(env.env_spec.observation_space, env.env_spec.action_space, h_dim=16)
 
-    dynamics = Dynamics(env, learn_reward=agent_config.learn_reward, std=agent_config.model_std)
-    # dynamics = RealDynamics(env)
+    # dynamics = Dynamics(env, learn_reward=agent_config.learn_reward, std=agent_config.model_std)
+    dynamics = RealDynamics(env)
 
     pi_optim = optim.SGD(policy.parameters(), lr=agent_config.policy_lr)
-    model_optim = optim.SGD(dynamics.parameters(), lr=agent_config.model_lr)
+    model_optim = None #  optim.SGD(dynamics.parameters(), lr=agent_config.model_lr)
 
     # if config.leanr_reward:
     #    reward_optim = optim.SGD(dynamics.r.parameters(), lr=config.reward_lr)
 
-    # dtm = datetime.now().strftime("%d-%H-%M-%S-%f")
-    # tb.SummaryWriter(log_dir=f"logs/{dtm}")
     writer = config.tb
     run(dynamics, env, model_optim, pi_optim, policy, writer)
     writer.close()
@@ -83,18 +80,18 @@ def run(dynamics, env, model_optim, pi_optim, agent, writer):
         # if config.train_on_buffer:
         #    model_loss = train_model_on_buffer(dynamics, buffer, model_optim)
         # else:64
-        model_loss = train_model_on_traj(trajectory, dynamics, model_optim, batch_size=agent_config.batch_size,
-                                         shuffle=agent_config.shuffle)
-        extend(writer, model_loss, n_samples)
+        #model_loss = train_model_on_traj(trajectory, dynamics, model_optim, batch_size=agent_config.batch_size,
+        #                                 shuffle=agent_config.shuffle)
+        #extend(writer, model_loss, n_samples)
 
         # if config.learn_reward:
         #    reward_loss = train_reward_on_buffer(dynamics, buffer, reward_optim)
         #    writer.add_scalar("train/reward_loss", reward_loss, global_step=n_samples)
         # writer.add_scalar("train/model_loss", model_loss, global_step=n_samples)
 
-        if n_samples > agent_config.initial_steps:
-            agent_loss = train(dynamics, agent, pi_optim, trajectory, gamma=env.gamma, opt_steps=agent_config.opt_steps)
-            extend(writer, agent_loss, n_samples)
+        #if n_samples > agent_config.initial_steps:
+        agent_loss = train(dynamics, agent, pi_optim, trajectory, gamma=env.gamma)
+        extend(writer, agent_loss, n_samples)
 
         # writer.add_scalar("train/return", ret, global_step=n_samples)
         # writer.add_scalar("train/grad_norm", grad_norm, global_step=n_samples)
