@@ -1,9 +1,9 @@
 import sys
-from datetime import datetime
+#from datetime import datetime
 
 import mila_tools
 import torch
-import torch.utils.tensorboard as tb
+#import torch.utils.tensorboard as tb
 
 RUN_SWEEP = 1
 REMOTE = 1
