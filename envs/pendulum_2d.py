@@ -54,16 +54,18 @@ class Pendulum3D(pendulum.PendulumEnv):
         super(Pendulum3D, self).__init__()
 
         def _dynamics(state, action):
-            th, thdot = state
+            cos_th, sin_th, thdot = state
+            th = torch.atan2(cos_th, sin_th)
             newthdot = (thdot + (-3 * self.g / (2 * self.l) * torch.sin(th + math.pi) + 3.0 / (
                     self.m * self.l ** 2) * action) * self.dt)
             newth = th + newthdot * self.dt
             newthdot = torch.clamp(newthdot, -self.unwrapped.max_speed, self.unwrapped.max_speed)
-            next_state = torch.cat([newth, newthdot])
+            next_state = torch.cat([torch.cos(newth), torch.sin(newth), newthdot])
             return next_state
 
         def _reward(state, action):
-            th, th_dot = state
+            cos_th, sin_th, th_dot = state
+            th = torch.atan2(cos_th, sin_th)
             th = pendulum.angle_normalize(th)
             cost = th ** 2 + 0.1 * th_dot ** 2 + 0.001 * (action ** 2)
             return -cost.sum()

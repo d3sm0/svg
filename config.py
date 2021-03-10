@@ -5,8 +5,8 @@ import mila_tools
 import torch
 #import torch.utils.tensorboard as tb
 
-RUN_SWEEP = 1
-REMOTE = 1
+RUN_SWEEP = 0
+REMOTE = 0
 NUM_PROCS = 1
 
 sweep_yaml = "sweep.yaml" if RUN_SWEEP else False
