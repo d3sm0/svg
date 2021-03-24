@@ -26,7 +26,9 @@ def _get_action_bound(bound: gym.spaces.Box):
 class Wrapper(gym.Wrapper):
     def __init__(self, env, horizon, gamma=0.99):
         super(Wrapper, self).__init__(env)
-        self.env_spec = EnvSpec(self.observation_space.shape[0], self.action_space.shape[0])
+        assert hasattr(env.unwrapped, "reward"), "Env must expose reward_fn for SVG"
+        self.reward = env.unwrapped.reward
+        self.env_spec = EnvSpec(self.env.observation_space.shape[0], self.env.action_space.shape[0])
         self._action_bound = _get_action_bound(self.env.action_space)
         self.horizon = horizon
         if hasattr(env, "gamma"):
@@ -65,43 +67,8 @@ class Wrapper(gym.Wrapper):
         return *self._to_torch(state, 0, False), {}
 
 
-def _make_bullet_env():
-    raise NotImplementedError("WIP")
-    # import pybullet_envs
-    # pybullet_envs.registry
-    # env_id = 'InvertedPendulumSwingupBulletEnv-v0'
-    # id = 'CartPoleContinuousBulletEnv-v0'
-
-    import pybullet_envs.gym_pendulum_envs
-    pybullet_envs.gym_pendulum_envs.InvertedDoublePendulumBulletEnv()
-
-
 def make_env(env_id="lqg", horizon=200):
     assert env_id in ENV_IDS, f"env_id:{env_id} not in  {ENV_IDS}."
     env = gym.make(env_id)
-    assert hasattr(env, "reward"), "Env must expose reward_fn for SVG"
     env = Wrapper(env, horizon=horizon)
     return env
-
-
-def _test_env():
-    env_list = ["pendulum"]  # , "lqg", "pendulum", "quadrotor"]
-
-    # env = monitor.Monitor(env, directory=config.log_dir)
-
-    def _eval_env(env_id):
-        env = make_env(env_id)
-        env.reset()
-        while True:
-            s1, r, d, _ = env.step(torch.tensor(env.action_space.sample()))
-            env.render()
-            if d:
-                break
-        env.close()
-
-    for env_id in env_list:
-        _eval_env(env_id)
-
-
-if __name__ == "__main__":
-    _test_env()

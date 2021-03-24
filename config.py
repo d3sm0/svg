@@ -1,9 +1,6 @@
 import sys
-#from datetime import datetime
 
-import mila_tools
-import torch
-#import torch.utils.tensorboard as tb
+import experiment_buddy
 
 RUN_SWEEP = 0
 REMOTE = 0
@@ -15,8 +12,18 @@ DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
 seed = 0
 use_cuda = False
 
-mila_tools.register(locals())
-device = torch.device("cuda" if use_cuda else "cpu")
+h_dim = 32
+max_n_samples = int(1e6)
+policy_lr = 1e-3
+model_lr = 1e-3
+model_std = 0.1
+horizon = 200
+env_id = "DifferentiablePendulum-v0"
+gamma = 0.99
+save_every = 100
+
+experiment_buddy.register(locals())
+# device = torch.device("cuda" if use_cuda else "cpu")
 
 ################################################################
 # Derivative parameters
@@ -24,17 +31,4 @@ device = torch.device("cuda" if use_cuda else "cpu")
 # esh = """
 # #SBATCH --mem=24GB
 # """
-esh = """
-#SBATCH --job-name=spython
-#SBATCH --output=job_output.txt
-#SBATCH --error=job_error.txt
-#SBATCH --time=2-00:00
-#SBATCH --mem=24GB
-#SBATCH --cpus-per-task=4
-#SBATCH --partition=long
-#SBATCH --get-user-env=L
-"""
-tb = mila_tools.deploy(host=HOST, sweep_yaml=sweep_yaml, extra_slurm_headers=esh, proc_num=NUM_PROCS)
-#dtm = datetime.now().strftime("%d-%H-%M-%S-%f")
-#tb = tb.SummaryWriter(log_dir=f"logs/{dtm}")
-#
+tb = experiment_buddy.deploy(host=HOST, sweep_yaml=sweep_yaml, proc_num=NUM_PROCS)

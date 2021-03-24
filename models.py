@@ -25,7 +25,7 @@ class Policy(nn.Module):
         out = self.out(h)
         mu, sigma = torch.split(out, self.action_dim, -1)
         sigma = F.softplus(sigma)
-        return mu, (sigma + 1e-3)
+        return mu, sigma + 1e-3
 
     def sample(self, s):
         mu, sigma = self(s)

@@ -64,18 +64,15 @@ def recreate_transition(state, transition, dynamics, policy):
     return action, next_state, (scale, sigma)
 
 
-def unroll(dynamics, policy, traj, gamma=0.99, h_detach=0.0, action_reg=1e-1):
+def unroll(dynamics, policy, traj, gamma=0.99):
     total_reward = 0
     state = traj[0].state
     noises = []
     for t, transition in enumerate(traj):
         action, next_state, noise = recreate_transition(state, transition, dynamics, policy)
         noises.append(noise)
-        # assert
-        reward = dynamics.reward(state, action)  # - action_reg * action.norm() ** 2
+        reward = dynamics.reward(state, action)
         total_reward += (gamma ** t) * reward
-        # if torch.rand((1,)) < h_detach:
-        #    next_state.detach_()
         state = next_state
     a, b = list(zip(*noises))
     sigma_avg = torch.tensor(a).mean()
@@ -84,11 +81,11 @@ def unroll(dynamics, policy, traj, gamma=0.99, h_detach=0.0, action_reg=1e-1):
 
 
 def train(dynamics, policy, pi_optim, traj, grad_clip=5., gamma=0.99):
-    total_return, extra = unroll(dynamics, policy, traj, gamma=gamma, action_reg=0., h_detach=0.)
+    total_return, extra = unroll(dynamics, policy, traj, gamma=gamma)
     pi_optim.zero_grad()
     (-total_return).backward()
     true_norm = get_grad_norm(parameters=policy.parameters())
-    nn.utils.clip_grad_value_(policy.parameters(), grad_clip)
+    # nn.utils.clip_grad_value_(policy.parameters(), grad_clip)
     pi_optim.step()
     return {"agent/return": total_return, "agent/grad_norm": true_norm, **extra}
 

@@ -1,6 +1,3 @@
 gym
-torch
-wandb
-GitPython
 tensorboardX
-git+git://github.com/manuel-delverme/mila_tools.git#egg=mila_tools
+-e git+https://github.com/ministry-of-silly-code/experiment_buddy#egg=experiment_buddy

@@ -1,30 +1,44 @@
+import collections
+from envs import torch_envs
+import config
 import os
 
 import torch
-from gym.wrappers import Monitor
-
-from envs import pendulum_2d
-from envs.torch_envs import Wrapper
+from gym.wrappers import  Monitor
 
 
-def generate_episode(env, policy, gamma=0.99):
+def generate_episode(env, policy):
     s, *_ = env.reset()
     d = False
+    info = {}
     while not d:
         mu, _ = policy(s)
         s1, r, d, info = env.step(mu.detach())
         env.render()
         s = s1
+    env.close()
+    return info
 
 
-# log_dir = "logs/07-17-57-11-940048/latest.pt"
-# log_dir = "logs/07-18-03-07-188148/latest.pt"
-log_dir = "logs/07-18-59-17-960117/latest.pt"
-env = pendulum_2d.Pendulum2D()
-env = Monitor(env, os.path.dirname(log_dir), force=True)
-env = Wrapper(env, horizon=100)
-policy = torch.load(log_dir)
-# policy = Policy(3, 1)
-# policy.load_state_dict(state_dict)
+def eval_policy(log_dir, eval_runs=1):
+    env = torch_envs.make_env(config.env_id)
+    env = Monitor(env, os.path.dirname(log_dir), force=True)
+    policy = torch.load(log_dir)
+    agg_info = collections.defaultdict(lambda: 0)
+    for _ in range(eval_runs):
+        info = generate_episode(env, policy)
+        for k in info.keys():
+            agg_info[f"eval/{k}"] += info[k] / eval_runs
+    env.close()
+    del env
+    del policy
+    return dict(agg_info)
 
-generate_episode(env, policy)
+
+#if __name__ == '__main__':
+#    import argparse
+#
+#    parser = argparse.ArgumentParser("eval")
+#    parser.add_argument("--logdir", type=str, required=True)
+log_dir = "runs/objects/local_Mar24_18-17-18/model-2200.pt"
+eval_policy(log_dir)
