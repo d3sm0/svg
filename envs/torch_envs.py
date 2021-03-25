@@ -38,6 +38,7 @@ class Wrapper(gym.Wrapper):
         self.t = None
 
     def step(self, action):
+        assert torch.isfinite(action), f"action is {action}"
         action = torch.clamp(action, self._action_bound.low, self._action_bound.high)
         action = action.numpy()
         next_state, r, d, _ = super(Wrapper, self).step(action)
