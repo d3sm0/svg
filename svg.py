@@ -55,8 +55,29 @@ def unroll(dynamics, policy, traj, state):
 
 
 def train(dynamics, policy, pi_optim, trajectory, model_optim):
-    extra = {}
-    # for _ in range(config.opt_epochs):
+    total_td = 0
+    for _ in range(config.opt_epochs):
+        for (s, a, r, s1) in trajectory.sample_batch(batch_size=config.batch_size):
+            td = r + policy.value(s1).squeeze().detach() - policy.value(s).squeeze()
+            loss = (0.5 * (td ** 2)).mean()
+            total_td += loss
+            pi_optim.zero_grad()
+            loss.backward()
+            pi_optim.step()
+        total_td /= len(trajectory)
+    pi_optim.zero_grad()
+
+    model_loss = 0
+    for _ in range(config.opt_epochs):
+        for (s, a, r, s1) in trajectory.sample_batch(batch_size=config.batch_size):
+            loss = (dynamics(s, a)[0] - s1).norm(2, 1).pow(2).mean()
+            model_loss += loss
+            model_optim.zero_grad()
+            loss.backward()
+            model_optim.step()
+        model_loss /= len(trajectory)
+    model_optim.zero_grad()
+
     start_state, partial_trajectory = trajectory.sample_partial(config.train_horizon)
     total_return, extra = unroll(dynamics, policy, partial_trajectory, start_state)
     assert torch.isfinite(total_return)
@@ -66,28 +87,6 @@ def train(dynamics, policy, pi_optim, trajectory, model_optim):
     pi_norm = l2_norm(policy.named_parameters())
     torch.nn.utils.clip_grad_value_(policy.parameters(), clip_value=config.grad_clip)
     pi_optim.step()
-
-    total_td = 0
-    for _ in range(config.opt_epochs):
-        for (s, a, r, s1) in trajectory.sample_batch(batch_size=config.batch_size):
-            td = r + policy.value(s1) - policy.value(s)
-            loss = (0.5 * (td ** 2)).mean()
-            total_td += loss
-            pi_optim.zero_grad()
-            loss.backward()
-            pi_optim.step()
-        total_td /= len(trajectory)
-
-    model_loss = 0
-    for _ in range(config.opt_epochs):
-        for (s, a, r, s1) in trajectory.sample_batch(batch_size=config.batch_size):
-            loss = (dynamics(s, a)[0] - s1).norm(2, 1).pow(2).mean()
-            # loss = (0.5 * (td ** 2)).mean()
-            model_loss += loss
-            model_optim.zero_grad()
-            loss.backward()
-            model_optim.step()
-        model_loss /= len(trajectory)
 
     return {"agent/return": total_return,
             "agent/td_error": total_td,

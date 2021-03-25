@@ -17,22 +17,23 @@ def scalars_to_tb(writer, scalars, global_step):
 def main():
     torch.manual_seed(config.seed)
     env = torch_envs.make_env(config.env_id, horizon=config.horizon)
-    policy = Policy(env.env_spec.observation_space, env.env_spec.action_space, h_dim=config.h_dim)
-    dynamics = Dynamics(env)
+    #policy = Policy(env.env_spec.observation_space, env.env_spec.action_space, h_dim=config.h_dim)
+    #dynamics = Dynamics(env)
+    policy, dynamics =torch.load("/home/d3sm0/code/research/svg/runs/objects/no_id_Mar25_12-43-11/model-2900.pt")
     pi_optim = optim.SGD(list(policy.parameters()), lr=config.policy_lr)
     model_optim = optim.SGD(list(dynamics.parameters()), lr=config.model_lr)
     run(dynamics, env, pi_optim, policy, model_optim)
     env.close()
 
 
-def run(dynamics, env, pi_optim, agent,model_optim):
+def run(dynamics, env, pi_optim, agent, model_optim):
     n_samples = 0
     for global_step in itertools.count():
         if n_samples >= config.max_n_samples:
             break
         if global_step % config.save_every == 0:
             print(f"Saved at {global_step}. Progress:{n_samples / config.max_n_samples:.2f}")
-            config.tb.add_object("model", agent, global_step)
+            config.tb.add_object("model", (agent, dynamics), global_step)
         trajectory, env_statistics = generate_episode(env, agent)
         scalars_to_tb(config.tb, env_statistics, n_samples)
         agent_loss = train(dynamics, agent, pi_optim, trajectory, model_optim)

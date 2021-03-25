@@ -39,7 +39,7 @@ class Dynamics(nn.Module):
         self.out = nn.Linear(h_dim, 2 * obs_dim)
         self.std = torch.tensor(std)
 
-        self.apply(weights_init)
+        # self.apply(weights_init)
 
     def forward(self, s, a):
         h = self.fc(torch.cat((s, a), dim=-1))

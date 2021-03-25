@@ -4,15 +4,5 @@ metric:
   name: env/avg_reward
   goal: maximize
 parameters:
-  opt_epochs:
-    values: [ 1, 3, 5 ]
-  policy_lr:
-    values: [ 0.0001, 0.0005, 0.001 ]
   horizon:
-    values: [ 1, 3, 5,10 ]
-  h_dim:
-    values: [ 16, 32, 64, 128 ]
-  regularizer:
-    values: [ 0.001, 0.005, 0.01, 0.05]
-
-
+    values: [ 1, 3, 5,10 , 15, 20 ]
