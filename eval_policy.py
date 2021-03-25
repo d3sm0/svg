@@ -40,5 +40,7 @@ def eval_policy(log_dir, eval_runs=1):
 #
 #    parser = argparse.ArgumentParser("eval")
 #    parser.add_argument("--logdir", type=str, required=True)
-log_dir = "runs/objects/local_Mar24_18-17-18/model-2200.pt"
+#log_dir = "runs/objects/local_Mar24_18-17-18/model-2200.pt"
+log_dir = "runs/objects/no_id_Mar25_02-07-29/model-4400.pt"
+#log_dir ="runs/objects/asfd_Mar25_01-41-54/model-5300.pt"
 eval_policy(log_dir)
