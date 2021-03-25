@@ -56,21 +56,12 @@ class DifferentiablePendulum(gym.envs.classic_control.PendulumEnv):
 
 
 if __name__ == "__main__":
-    env1 = DifferentiablePendulum()
-    env2 = DifferentiablePendulum()
+    env = DifferentiablePendulum()
 
-    obs1 = (env1.reset(), 0)
-    env2.state = torch.FloatTensor(env1.state)
-    obs2 = (torch.FloatTensor(obs1[0]), 0)
-    print(env1.state, env2.state)
-
-    import numpy as np
-
-    a = np.array([0.1])
-
+    s = env.reset()
     for i in range(10):
-        state, reward = env2.dynamics(obs2[0], torch.FloatTensor(a)), env2.reward(obs2[0], torch.FloatTensor(a))
-        obs1 = env1.step(a)
-        obs2 = env2.step(torch.FloatTensor(a))
-        print(np.linalg.norm(obs1[0] - obs2[0].numpy()), np.linalg.norm(obs1[0] - state.numpy()),
-              np.linalg.norm(obs1[1] - obs2[1].numpy()), np.linalg.norm(obs1[1] - reward.numpy()))
+        a = env.action_space.sample()
+        s1, r, d, info = env.step(a)
+        _s1 = env.dynamics(torch.from_numpy(s).float(), torch.from_numpy(a).float())
+        assert np.allclose(_s1, s1), print(_s1, s1)
+        s = s1
