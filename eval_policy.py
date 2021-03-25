@@ -1,10 +1,12 @@
 import collections
-from envs import torch_envs
+from envs import jax_envs
 import config
 import os
+import flax
+import flax.training.checkpoints as ckpts
 
-import torch
-from gym.wrappers import  Monitor
+# import torch
+from gym.wrappers import Monitor
 
 
 def generate_episode(env, policy):
@@ -21,9 +23,9 @@ def generate_episode(env, policy):
 
 
 def eval_policy(log_dir, eval_runs=1):
-    env = torch_envs.make_env(config.env_id)
+    env = jax_envs.make_env(config.env_id)
     env = Monitor(env, os.path.dirname(log_dir), force=True)
-    policy = torch.load(log_dir)
+    policy = ckpts.restore_checkpoint(ckpt_dir=log_dir, target=None)
     agg_info = collections.defaultdict(lambda: 0)
     for _ in range(eval_runs):
         info = generate_episode(env, policy)
@@ -35,7 +37,7 @@ def eval_policy(log_dir, eval_runs=1):
     return dict(agg_info)
 
 
-#if __name__ == '__main__':
+# if __name__ == '__main__':
 #    import argparse
 #
 #    parser = argparse.ArgumentParser("eval")

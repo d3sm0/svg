@@ -2,7 +2,7 @@ from typing import NamedTuple
 
 import gym
 import numpy as np
-import torch
+import jax
 
 from . import ENV_IDS
 
@@ -38,8 +38,8 @@ class Wrapper(gym.Wrapper):
         self.t = None
 
     def step(self, action):
-        action = torch.clamp(action, self._action_bound.low, self._action_bound.high)
-        action = action.numpy()
+        action = jax.lax.clamp(self._action_bound.low, action, self._action_bound.high)
+        action = action
         next_state, r, d, _ = super(Wrapper, self).step(action)
         info = {"env/reward": r,
                 "env/avg_reward": self.returns / (self.t + 1),
@@ -49,22 +49,13 @@ class Wrapper(gym.Wrapper):
             d = True
         self.t += 1
         self.returns += r
-        return *self._to_torch(next_state, r, d), info
-
-    @staticmethod
-    def _to_torch(s, r, d):
-        if not isinstance(s, torch.Tensor):
-            s = torch.tensor(s, dtype=torch.float32)
-        if not isinstance(r, torch.Tensor):
-            r = torch.tensor(r, dtype=torch.float32)
-        d = torch.tensor(d, dtype=torch.float32)
-        return s, r, d
+        return next_state, r, d, info
 
     def reset(self, **kwargs):
         state = super(Wrapper, self).reset()
         self.returns = 0
         self.t = 0
-        return *self._to_torch(state, 0, False), {}
+        return state, 0, False, {}
 
 
 def make_env(env_id="lqg", horizon=200):

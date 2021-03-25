@@ -1,3 +1,5 @@
 gym
 tensorboardX
+flax
 -e git+https://github.com/ministry-of-silly-code/experiment_buddy#egg=experiment_buddy
+git+https://github.com/deepmind/dm-haiku#egg=dm-haiku
