@@ -32,3 +32,30 @@ def train_reward_on_buffer(dynamics, buffer, reward_optim, batch_size=64, n_batc
         loss.backward()
         reward_optim.step()
     return total_loss / n_batches
+
+
+def train_model_on_traj(buffer, dynamics, model_optim, batch_size=64, shuffle=True, n_epochs=5):
+    total_loss = 0.
+    total_reward_loss = 0.
+    total_model_loss = 0.
+    total_grad_norm = 0.
+    for traj in buffer.train_batches(batch_size=batch_size, n_epochs=n_epochs):
+        for (state, action, r, next_state) in traj.sample(batch_size=batch_size, shuffle=shuffle):
+            model_optim.zero_grad()
+            mu, _ = dynamics(state, action)
+            model_loss = 0.5 * (mu - next_state).norm(dim=-1) ** 2
+            reward_loss = 0.5 * (r - dynamics.reward(state, action)) ** 2
+            loss = (model_loss + reward_loss).mean()
+            total_model_loss += model_loss.mean()
+            total_reward_loss += reward_loss.mean()
+            loss.backward()
+            grad_norm = get_grad_norm(dynamics.parameters())
+            total_grad_norm += grad_norm
+            model_optim.step()
+            total_loss += loss
+    denom = (len(traj) * batch_size)
+    return {"model/total_loss": total_loss / denom,
+            "model/model_loss": total_model_loss / denom,
+            "model/reward_loss": total_reward_loss / denom,
+            "model/grad_norm": total_grad_norm / denom
+            }
