@@ -58,7 +58,7 @@ def train(dynamics, policy, pi_optim, trajectory, model_optim):
     total_td = 0
     for _ in range(config.opt_epochs):
         for (s, a, r, s1) in trajectory.sample_batch(batch_size=config.batch_size):
-            td = r + policy.value(s1).squeeze().detach() - policy.value(s).squeeze()
+            td = r + policy.value(s1).squeeze() - policy.value(s).squeeze()
             loss = (0.5 * (td ** 2)).mean()
             total_td += loss
             pi_optim.zero_grad()
