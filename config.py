@@ -16,11 +16,16 @@ h_dim = 32
 max_n_samples = int(1e6)
 policy_lr = 1e-3
 model_lr = 1e-3
-model_std = 0.1
-horizon = 200
+horizon = 200 if not DEBUG else 50
 env_id = "DifferentiablePendulum-v0"
 gamma = 0.99
 save_every = 100
+train_horizon = 5
+grad_clip = 5.
+batch_size = 32
+opt_epochs = 3
+detach = 0.
+regularizer = 1e-4
 
 experiment_buddy.register(locals())
 # device = torch.device("cuda" if use_cuda else "cpu")
