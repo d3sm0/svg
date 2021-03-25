@@ -1,82 +1,108 @@
+import operator
 from typing import NamedTuple
+import config
 
-import jax
-from jax import numpy as jnp
+import torch
+import torch.nn as nn
 
-import utils
-from agent import Actor
-from config import config
-
-
-class ModelTransition(NamedTuple):
-    action: int = 0
-    state: int = 0
+from buffer import Trajectory, Transition
 
 
-class ReverseAgent:
-    def __init__(self, dynamics):
-        self._agent = Actor(action_space=dynamics.action_space)
-        self._dynamics = dynamics
-        self._key_gen = None
-        self.control_fn = jax.jit(self.control_fn)
-        self.training_step = self.training_step
+def get_grad_norm(parameters):
+    grad_norm = 0
+    for p in parameters:
+        if p.grad is not None:
+            grad_norm += p.norm().cpu()
+    return grad_norm
 
-    def initial_params(self, key):
-        self._grad_fn = jax.value_and_grad(self.vg_loss)
-        x = self._dynamics.get_state()
-        params = self._agent.init(key, x)
-        self.master_key = key
-        return params
 
-    def act(self, params, state):
-        self.master_key, key = jax.random.split(self.master_key)
-        action_noise = jax.random.normal(self.master_key)
-        action = self.control_fn(params, state, action_noise)
-        return action, {"action_noise": action_noise}
+def l2_norm(parameters):
+    grad_norm = 0
+    for n, p in parameters:
+        if "bias" in n:
+            continue
+        grad_norm += p.norm().cpu()
+    return grad_norm
 
-    def control_fn(self, params, state, action_noise):
-        pi = self._agent.apply(params, state)
-        action = pi.loc + pi.scale * action_noise
-        return action
 
-    def post_action(self,  *args):
-        return
+def recreate_transition(state, transition, dynamics, policy):
+    a_hat, scale = policy(state)
+    assert scale > 0
+    eps = (transition.action - a_hat) / scale
+    action = a_hat + scale * eps.detach()
 
-    def training_step(self, params, model_params, transitions, scale):
-        loss, grad = self._grad_fn(params, model_params, transitions)
-        grad = utils.clip_gradients(grad, config.grad_clip)
-        grad_norm = utils.global_norm(grad)
-        return grad, {"loss": loss, "grad_norm": grad_norm}
+    s1_hat, sigma = dynamics(state, action)
+    assert (sigma > 0).all()
+    eta = (transition.next_state - s1_hat) / sigma
+    next_state = s1_hat + sigma * eta.detach()
 
-    def _vg_loss(self, state, transition, params, model_params):
-        t, state = state
-        pi = self._agent.apply(params, state)
-        action = pi.loc + pi.scale * transition.action_noise
-        model_noise = self._dynamics.infer_noise(model_params, state, action, transition.next_state)
-        next_state, reward = self._dynamics(model_params, state, action, model_noise)
+    return action, next_state, (scale.norm(), sigma.norm())
+
+
+def unroll(dynamics, policy, traj, state):
+    total_return = torch.zeros((1,))
+    noises = []
+    for t, transition in enumerate(traj):
+        action, next_state, noise = recreate_transition(state, transition, dynamics, policy)
+        noises.append(noise)
+        reward = dynamics.reward(state, action)
+        total_return += (config.gamma ** t) * reward
+        next_state = next_state
         state = next_state
-        return (t + 1, state), reward
-
-    def vg_loss(self, params, model_params, transitions):
-        partial_ = jax.partial(self._vg_loss, params=params, model_params=model_params)
-        state = transitions[0].state
-        xs = list(zip(*transitions))
-        xs = utils.Transition(*[jnp.stack(x) for x in xs])
-        _, rewards = jax.lax.scan(partial_, init=(0, state), xs=xs)
-        return - jnp.sum(rewards)
-
-    def zero_grad(self):
-        self._t = 0
-        self._returns = 0
+    # TODO test vf detach
+    total_return += policy.value(state).detach() * config.gamma ** config.horizon
+    return total_return, {"scale": noise[0], "sigma": noise[1]}
 
 
-def reinforce(model, samples):
-    reinforce_loss = 0.
-    for transition, value in zip(*samples):
-        states, actions, _, _, _ = transition
-        policy = model(states)
-        loss = -utils.log_prob(actions, policy).sum(axis=-1) * value
-        loss = utils.scale_gradients(loss, scale=(1 / len(samples[0])))
-        loss = jnp.mean(loss)
-        reinforce_loss += loss
-    return reinforce_loss
+def train(dynamics, policy, pi_optim, trajectory, model_optim):
+    extra = {}
+    # for _ in range(config.opt_epochs):
+    start_state, partial_trajectory = trajectory.sample_partial(config.train_horizon)
+    total_return, extra = unroll(dynamics, policy, partial_trajectory, start_state)
+    assert torch.isfinite(total_return)
+    pi_optim.zero_grad()
+    (-total_return).backward()
+    pi_grad_norm = get_grad_norm(parameters=policy.parameters())
+    pi_norm = l2_norm(policy.named_parameters())
+    torch.nn.utils.clip_grad_value_(policy.parameters(), clip_value=config.grad_clip)
+    pi_optim.step()
+
+    total_td = 0
+    for _ in range(config.opt_epochs):
+        for (s, a, r, s1) in trajectory.sample_batch(batch_size=config.batch_size):
+            td = r + policy.value(s1) - policy.value(s)
+            loss = (0.5 * (td ** 2)).mean()
+            total_td += loss
+            pi_optim.zero_grad()
+            loss.backward()
+            pi_optim.step()
+        total_td /= len(trajectory)
+
+    model_loss = 0
+    for _ in range(config.opt_epochs):
+        for (s, a, r, s1) in trajectory.sample_batch(batch_size=config.batch_size):
+            loss = (dynamics(s, a)[0] - s1).norm(2, 1).pow(2).mean()
+            # loss = (0.5 * (td ** 2)).mean()
+            model_loss += loss
+            model_optim.zero_grad()
+            loss.backward()
+            model_optim.step()
+        model_loss /= len(trajectory)
+
+    return {"agent/return": total_return,
+            "agent/td_error": total_td,
+            "agent/train": model_loss,
+            "agent/grad_norm": pi_grad_norm,
+            "agent/pi_norm": pi_norm,
+            **extra}
+
+
+def generate_episode(env, policy):
+    state, _, done, info = env.reset()
+    trajectory = Trajectory()
+    while not done:
+        action = policy.sample(state)
+        next_state, reward, done, info = env.step(action)
+        trajectory.append(Transition(state, action, reward, next_state, done))
+        state = next_state
+    return trajectory, info
