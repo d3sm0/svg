@@ -1,6 +1,6 @@
-DEBUG = True
+DEBUG = False
 
-max_steps = int(1e5) / 200
+max_steps = int(1e5)
 policy_lr = 1e-3
 critic_lr = 1e-3
 horizon = 200 if not DEBUG else 50
@@ -13,8 +13,13 @@ batch_size = 32
 regularizer = 1e-4
 seed = 33
 h_dim = 32
-should_render = False
-proc_num = 5
-host = "mila"
-
-sweep_yaml ="sweep.yaml"
+if not DEBUG:
+    should_render = False
+    proc_num = 5
+    host = "mila"
+    sweep_yaml ="sweep.yaml"
+else:
+    should_render = True
+    proc_num = 1
+    host = ""
+    sweep_yaml = "" #k"sweep.yaml"

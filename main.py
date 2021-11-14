@@ -38,7 +38,7 @@ def gather_trajectory(env, agent, gamma=0.99):
 def main():
     torch.manual_seed(config.seed)
     buddy.register_defaults(config.__dict__)
-    tb = buddy.deploy(proc_num=config.proc_num,host=config.host,sweep_yaml=config.sweep_yaml)
+    tb = buddy.deploy(proc_num=config.proc_num,host=config.host,sweep_yaml=config.sweep_yaml,disabled=config.DEBUG)
     env = Pendulum()  # agent follows brax convention
     agent = Agent(env.observation_size, env.action_size, h_dim=config.h_dim)
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
