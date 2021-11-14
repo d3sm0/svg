@@ -42,10 +42,12 @@ class Wrapper(gym.Wrapper):
         action = torch.clamp(action, self._action_bound.low, self._action_bound.high)
         action = action.numpy()
         next_state, r, d, _ = super(Wrapper, self).step(action)
-        info = {"env/reward": r,
-                "env/avg_reward": self.returns / (self.t + 1),
-                "env/returns": self.returns,
-                "env/steps": self.t}
+        info = {
+            "env/reward": r,
+            "env/avg_reward": self.returns / (self.t + 1),
+            "env/returns": self.returns,
+            "env/steps": self.t
+        }
         if self.t >= self.horizon or d is True:
             d = True
         self.t += 1

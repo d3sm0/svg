@@ -3,6 +3,8 @@ from typing import NamedTuple
 
 import torch
 
+import collections
+import random
 
 class Transition(NamedTuple):
     state: torch.tensor
@@ -10,56 +12,22 @@ class Transition(NamedTuple):
     reward: torch.tensor
     next_state: torch.tensor
     done: torch.tensor
+    noise: torch.tensor
 
+class ReplayMemory:
 
-class Buffer:
-    def __init__(self, max_size=int(1e4)):
-        """
-        data buffer that holds transitions
-        Args:
-            d_state: dimensionality of state
-            d_action: dimensionality of action
-            size: maximum number of transitions to be stored (memory allocated at init)
-        """
-        # Dimensions
-        self.max_size = max_size
-        self.n_trajectories = 0
-        self.n_samples = 0
-        self._buffer = []
+    def __init__(self, capacity):
+        self.memory = collections.deque([],maxlen=capacity)
 
-    def add(self, trajectory):
-        """
-        add transition(s) to the buffer
-        Args:
-            states: pytorch Tensors of (n_transitions, d_state) shape
-            actions: pytorch Tensors of (n_transitions, d_action) shape
-            next_states: pytorch Tensors of (n_transitions, d_state) shape
-        """
-        if len(self._buffer) > self.max_size:
-            t = self._buffer.pop(0)
-            self.n_trajectories -= 1
-            self.n_samples -= len(t)
-        self._buffer.append(trajectory)
-        self.n_trajectories += 1
-        self.n_samples += len(trajectory)
+    def append(self, transition:Transition):
+        """Save a transition"""
+        self.memory.append(transition)
 
-    def train_batches(self, batch_size, n_epochs=1):
-        """
-        return an iterator of batches
-        Args:
-            batch_size: number of samples to be returned
-        Returns:
-            state of size (n_samples, d_state)
-            action of size (n_samples, d_action)
-            next state of size (n_samples, d_state)
-        """
-
-        for _ in range(n_epochs):
-            traj_idx = torch.randint(self.n_trajectories, size=(1,)).item()
-            yield self._buffer[traj_idx]
+    def sample(self, batch_size):
+        return random.sample(self.memory, batch_size)
 
     def __len__(self):
-        return len(self._buffer)
+        return len(self.memory)
 
 
 class Trajectory:
@@ -81,12 +49,15 @@ class Trajectory:
     def append(self, transition):
         self._data.append(transition)
 
+    def get_trajectory(self):
+        return  self._data
+
     def sample_partial(self, horizon):
         assert self.__len__() - horizon - 1 > 0, "not enough data"
         idx = torch.randint(self.__len__() - horizon - 1, (1,))
-        return self._data[idx].state, iter(self._data[idx:idx + horizon])
+        return self._data[idx:idx + horizon]
 
-    def sample_batch(self, batch_size, shuffle=False):
+    def sample(self, batch_size, shuffle=False):
         idxs = torch.arange(self.__len__())
         if shuffle:
             idxs = idxs[torch.randperm(self.__len__())]
@@ -94,9 +65,12 @@ class Trajectory:
         idxs = torch.split(idxs, split_size_or_sections=batch_size)
         for idx in idxs:
             batch = operator.itemgetter(*idx)(self._data)
-            s, a, r, s1, *_ = list(zip(*batch))
+            s, a, r, s1, done,noise= list(zip(*batch))
             s = torch.stack(s)
             a = torch.stack(a)
             s1 = torch.stack(s1)
             r = torch.stack(r)
-            yield s, a, r, s1
+            done = torch.stack(done)
+            noise= torch.stack(noise)
+            yield Transition(s, a, r, s1, done,noise)
+
