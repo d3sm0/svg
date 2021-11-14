@@ -38,10 +38,10 @@ def gather_trajectory(env, agent, gamma=0.99):
 def main():
     torch.manual_seed(config.seed)
     buddy.register_defaults(config.__dict__)
-    tb = buddy.deploy(proc_num=config.proc_num,host=config.host,sweep_yaml=config.sweep_yaml)
-    env = Pendulum()  # agent follows brax convention
+    tb = buddy.deploy(proc_num=config.proc_num,host=config.host,sweep_yaml=config.sweep_yaml,disabled=config.DEBUG)
+    env = Pendulum(horizon=config.horizon)  # agent follows brax convention
     agent = Agent(env.observation_size, env.action_size, h_dim=config.h_dim)
-    actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
+    actor_optim = optim.SGD(agent.actor.parameters(), lr=config.policy_lr)
     critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr)
     run(env, agent, actor_optim, critic_optim, tb)
 
@@ -54,11 +54,13 @@ def run(env, agent, actor_optim, critic_optim, tb):
             break
         trajectory, env_return = gather_trajectory(env, agent)
 
-        critic_info = svg.critic(trajectory, agent, critic_optim, batch_size=config.batch_size)
+        critic_info = {}
+        #svg.critic(trajectory, agent, critic_optim, batch_size=config.batch_size)
         # ascend the gradient
-        actor_info = svg.actor(trajectory, agent, env, actor_optim, batch_size=config.batch_size)
+        # actor_info = svg.actor(trajectory, agent, env, actor_optim, batch_size=config.batch_size)
+        actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim)
         tb.add_scalar("train/return", env_return, n_samples)
-        scalars_to_tb(tb, {**actor_info, **critic_info}, n_samples)
+        scalars_to_tb(tb, {**actor_info}, n_samples)
         n_samples += 200
 
         if global_step % config.save_every == 0 and global_step > 0 and config.should_render:
