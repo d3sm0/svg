@@ -34,7 +34,7 @@ class Pendulum():
     state_dim = 3
     action_dim = 1
 
-    def __init__(self):
+    def __init__(self,horizon=100):
 
         self.max_speed = 8
         self.max_torque = 2.0
@@ -46,6 +46,7 @@ class Pendulum():
         self.viewer = None
         self.state = None
         self.last_u = None
+        self.horizon =horizon
 
         def _dynamics(obs, action):
             th, thdot = _obs_to_th(obs)
@@ -119,7 +120,7 @@ class Pendulum():
         pos, ang = _obs_to_th(next_obs)
         _state = torch.cat([pos, ang])
         done =0.
-        if self.t ==200:
+        if self.t ==self.horizon:
             done = 1.
         done = torch.tensor(done, dtype=torch.float32)
         self.t +=1

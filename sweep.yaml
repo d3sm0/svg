@@ -8,10 +8,10 @@ parameters:
     distribution: uniform
     min: 0.0001
     max: 0.001
-  critic_lr:
+  gamma:
     distribution: uniform
-    min: 0.0001
-    max: 0.001
+    min: 0.8
+    max: 0.99
   batch_size:
     distribution: int_uniform
     min: 4
