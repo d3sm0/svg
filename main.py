@@ -19,7 +19,7 @@ def scalars_to_tb(writer, scalars, global_step):
         writer.add_scalar(k, v, global_step)
 
 
-def gather_trajectory(env, agent, gamma=0.99):
+def gather_trajectory(env, agent,  gamma=0.99):
     state = env.reset(0)
     trajectory = Trajectory()
     total_return = 0
@@ -57,11 +57,11 @@ def run(env, agent, actor_optim, critic_optim, tb):
             break
         trajectory, env_return = gather_trajectory(env, agent)
 
-        critic_info = svg.critic(trajectory, agent, critic_optim, batch_size=config.batch_size)
+        critic_info = svg.critic(trajectory, agent, critic_optim, batch_size=config.batch_size, epochs=config.critic_epochs)
         # ascend the gradient
         # actor_info = svg.actor(trajectory, agent, env, actor_optim, batch_size=config.batch_size)
         actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim, horizon=config.train_horizon)
-        if torch.isnan(actor_info.get("train/actor_value")):
+        if torch.isnan(actor_info.get("actor/value")):
             raise RuntimeError("Found nan in loss")
         tb.add_scalar("train/return", env_return, n_samples)
         scalars_to_tb(tb, {**actor_info, **critic_info}, n_samples)

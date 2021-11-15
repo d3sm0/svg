@@ -35,15 +35,15 @@ def unroll(trajectory, agent, model, gamma):
         mu, std = agent.forward(state)
         varianve.append(std)
         action = mu + std * transition.noise
-        # action = action + (transition.action - action)
-        next_state = model.dynamics(state, action)  # + (transition.next_state - model.dynamics(state, action))
+        next_state = model.dynamics(state, action)
         reward = model.reward(state, action)
-        verify_transition(transition, state, action, reward, next_state)
+        # verify_transition(transition, state, action, reward, next_state)
         # action, next_state = recreate_transition(transition, policy)
         # Assume we get the reward upon transition to s1 and not at s1
         total_return += (gamma ** t) * reward
         state = next_state
     # we do not change the value function here, but we need to backprop throuhg
+    # what happen if we replace the value function bootstrapped here with the one from pi^star?
     total_return += (1 - transition.done) * agent.value(state).squeeze() * gamma ** config.horizon
     return total_return, {
         "std": torch.cat(varianve).mean()
@@ -63,15 +63,18 @@ def one_step(transition, agent, model, gamma):
 
 
 def actor_trajectory(trajectory, agent, model, pi_optim, gamma=0.99, horizon=10):
+    trajectory_partial = trajectory.sample_partial(horizon=horizon)
+    # The policy needs to move slower than the critic
+    # otherwise the truncation breaks and future value estimates
+    # are gone
     pi_optim.zero_grad()
-    trajectory = trajectory.sample_partial(horizon=horizon)
-    value, metrics = unroll(trajectory, agent, model, gamma)
+    value, metrics = unroll(trajectory_partial, agent, model, gamma)
     (-value).backward()
     grad_norm = utils.get_grad_norm(agent.actor.parameters())
     # torch.nn.utils.clip_grad_value_(agent.actor.parameters(), 50)
     pi_optim.step()
     return {
-        "actor/loss": value.detach(),
+        "actor/value": value.detach(),
         "actor/grad_norm": grad_norm.detach(),
         "actor/std": metrics.get("std")
     }
@@ -96,17 +99,18 @@ def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99):
     }
 
 
-def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99):
+def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99,epochs=10):
     # TODO n-step return here
     total_loss = torch.tensor(0.)
     n_samples = 0
-    agent.zero_grad()
-    for (s, a, r, s1, done, noise) in repay_buffer.sample(batch_size):
-        loss = td_loss(agent, s, r, s1, done, gamma).mean()
-        loss.mean().backward()
-        total_loss += loss
-        n_samples += 1
-    pi_optim.step()
+    for _ in range(epochs):
+        agent.zero_grad()
+        for (s, a, r, s1, done, noise) in repay_buffer.sample(batch_size):
+            loss = td_loss(agent, s, r, s1, done, gamma).mean()
+            loss.mean().backward()
+            total_loss += loss
+            n_samples += 1
+        pi_optim.step()
     grad_norm = utils.get_grad_norm(agent.critic.parameters())
 
     total_loss = total_loss / n_samples
