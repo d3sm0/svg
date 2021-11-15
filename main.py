@@ -61,7 +61,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
         # ascend the gradient
         # actor_info = svg.actor(trajectory, agent, env, actor_optim, batch_size=config.batch_size)
         actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim, horizon=config.train_horizon)
-        if torch.isnan(actor_info.get("train/actor_value")):
+        if torch.isnan(actor_info.get("actor/value")):
             raise RuntimeError("Found nan in loss")
         tb.add_scalar("train/return", env_return, n_samples)
         scalars_to_tb(tb, {**actor_info, **critic_info}, n_samples)

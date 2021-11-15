@@ -71,7 +71,7 @@ def actor_trajectory(trajectory, agent, model, pi_optim, gamma=0.99, horizon=10)
     # torch.nn.utils.clip_grad_value_(agent.actor.parameters(), 50)
     pi_optim.step()
     return {
-        "actor/loss": value.detach(),
+        "actor/value": value.detach(),
         "actor/grad_norm": grad_norm.detach(),
         "actor/std": metrics.get("std")
     }
