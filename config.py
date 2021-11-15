@@ -1,4 +1,4 @@
-DEBUG = True
+DEBUG = False
 
 max_steps = int(1e5)
 policy_lr = 1e-3
