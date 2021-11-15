@@ -8,14 +8,10 @@ parameters:
     distribution: uniform
     min: 0.0001
     max: 0.001
-  gamma:
-    distribution: uniform
-    min: 0.8
-    max: 0.99
-  batch_size:
+  train_horizon:
     distribution: int_uniform
-    min: 4
-    max: 128
+    min: 10
+    max: 200
 early_terminate:
   type: hyperband
   s: 2

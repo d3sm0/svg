@@ -36,7 +36,7 @@ def unroll(trajectory, agent, model, gamma):
         varianve.append(std)
         action = mu + std * transition.noise
         # action = action + (transition.action - action)
-        next_state = model.dynamics(state, action) + (transition.next_state - model.dynamics(state, action))
+        next_state = model.dynamics(state, action)  # + (transition.next_state - model.dynamics(state, action))
         reward = model.reward(state, action)
         verify_transition(transition, state, action, reward, next_state)
         # action, next_state = recreate_transition(transition, policy)
@@ -44,9 +44,9 @@ def unroll(trajectory, agent, model, gamma):
         total_return += (gamma ** t) * reward
         state = next_state
     # we do not change the value function here, but we need to backprop throuhg
-    # total_return += (1 - transition.done) * agent.value(state).squeeze() * gamma ** config.horizon
+    total_return += (1 - transition.done) * agent.value(state).squeeze() * gamma ** config.horizon
     return total_return, {
-        "std":torch.cat(varianve).mean()
+        "std": torch.cat(varianve).mean()
     }
 
 
@@ -62,17 +62,20 @@ def one_step(transition, agent, model, gamma):
     }
 
 
-def actor_trajectory(trajectory, agent, model, pi_optim,  gamma=0.99):
+def actor_trajectory(trajectory, agent, model, pi_optim, gamma=0.99, horizon=10):
     pi_optim.zero_grad()
-    value, metrics = unroll(trajectory,agent,model,gamma)
+    trajectory = trajectory.sample_partial(horizon=horizon)
+    value, metrics = unroll(trajectory, agent, model, gamma)
     (-value).backward()
     grad_norm = utils.get_grad_norm(agent.actor.parameters())
+    # torch.nn.utils.clip_grad_value_(agent.actor.parameters(), 50)
     pi_optim.step()
     return {
         "actor/loss": value.detach(),
         "actor/grad_norm": grad_norm.detach(),
         "actor/std": metrics.get("std")
     }
+
 
 def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99):
     total_loss = torch.tensor(0.)
