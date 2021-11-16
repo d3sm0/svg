@@ -44,9 +44,9 @@ def unroll(trajectory, agent, model, gamma):
         state = next_state
     # we do not change the value function here, but we need to backprop throuhg
     # what happen if we replace the value function bootstrapped here with the one from pi^star?
+    # this looks like the target of n-step td but off by one factor.
     total_return += (1 - transition.done) * agent.value(state).squeeze() * gamma ** config.horizon
-    return total_return, {
-        "std": torch.cat(varianve).mean()
+    return total_return, { "std": torch.cat(varianve).mean()
     }
 
 
@@ -55,7 +55,7 @@ def one_step(transition, agent, model, gamma):
     action = mu + std * transition.noise
     r = vmap(model.reward)(transition.state, action)
     next_state = vmap(model.dynamics)(transition.state, action)
-    # TODO missing IW if policy drifts off policy
+    # TODO maybe missing IW if policy drifts off policy
     value = r + gamma * (1 - transition.done) * agent.value(next_state).squeeze()
     return value, {
         "std": torch.linalg.norm(std, 1).mean()
@@ -63,15 +63,16 @@ def one_step(transition, agent, model, gamma):
 
 
 def actor_trajectory(trajectory, agent, model, pi_optim, gamma=0.99, horizon=10):
-    trajectory_partial = trajectory.get_trajectory() #horizon=horizon)
+    trajectory_partial = trajectory.sample_partial(horizon)
     # The policy needs to move slower than the critic
     # otherwise the truncation breaks and future value estimates
     # are gone
-    pi_optim.zero_grad()
-    value, metrics = unroll(trajectory_partial, agent, model, gamma)
-    (-value).backward()
-    grad_norm = utils.get_grad_norm(agent.actor.parameters())
-    torch.nn.utils.clip_grad_value_(agent.actor.parameters(), config.grad_clip)
+    for _ in range(5):
+        pi_optim.zero_grad()
+        value, metrics = unroll(trajectory_partial, agent, model, gamma)
+        (-value).backward()
+        grad_norm = utils.get_grad_norm(agent.actor.parameters())
+    # torch.nn.utils.clip_grad_value_(agent.actor.parameters(), config.grad_clip)
     pi_optim.step()
     return {
         "actor/value": value.detach(),
@@ -80,19 +81,18 @@ def actor_trajectory(trajectory, agent, model, pi_optim, gamma=0.99, horizon=10)
     }
 
 
-def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99):
+def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99,epochs=1.):
     total_loss = torch.tensor(0.)
     n_samples = 0
-    pi_optim.zero_grad()
-
-    for transition in replay_buffer.sample(batch_size=batch_size):
-        value, metrics = one_step(transition, agent, model, gamma=gamma)
-        (-value).mean().backward()
-        total_loss += value.mean().detach()
-        n_samples += 1
+    for _ in range(epochs):
+        for transition, _ in replay_buffer.sample(batch_size=batch_size):
+            value, metrics = one_step(transition, agent, model, gamma=gamma)
+            pi_optim.zero_grad()
+            (-value).mean().backward()
+            pi_optim.step()
+            total_loss += value.mean().detach()
+            n_samples += 1
     grad_norm = utils.get_grad_norm(agent.actor.parameters())
-    pi_optim.step()
-    pi_optim.zero_grad()
     return {
         "actor/value": total_loss.detach() / n_samples,
         "actor/grad_norm": grad_norm.detach(),
@@ -100,19 +100,20 @@ def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99):
     }
 
 
-def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99,epochs=10):
+def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99, epochs=10):
     # TODO n-step return here
     total_loss = torch.tensor(0.)
     n_samples = 0
     for _ in range(epochs):
-        agent.zero_grad()
-        for (s, a, r, s1, done, noise) in repay_buffer.sample(batch_size):
-            loss = td_loss(agent, s, r, s1, done, gamma).mean()
+        for (s, a, r, s1, done, noise), target in repay_buffer.sample(batch_size):
+            # loss = 0.5 * (target - agent.value(s).squeeze())**2
+            agent.zero_grad()
+            loss = td_loss(agent, s, r, s1, done, gamma)
             loss.mean().backward()
-            total_loss += loss
+            total_loss += loss.mean()
             torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
             n_samples += 1
-        pi_optim.step()
+            pi_optim.step()
     grad_norm = utils.get_grad_norm(agent.critic.parameters())
 
     total_loss = total_loss / n_samples

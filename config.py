@@ -9,10 +9,12 @@ horizon = 200
 buffer_size = int(1e3)
 gamma = 0.99
 save_every = 100
-train_horizon = 20
+train_horizon = 10
 grad_clip = 5.
 batch_size = 64
-critic_epochs = 10
+critic_epochs = 5
+actor_epochs = 5
+
 regularizer = 1e-4
 seed = 33
 h_dim = 32

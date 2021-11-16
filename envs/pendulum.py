@@ -1,10 +1,8 @@
 import typing
+from os import path
 
 import numpy as np
 import torch
-import torch.distributions as torch_dist
-
-from os import path
 
 
 def angle_normalize(x):
@@ -30,7 +28,7 @@ class State(typing.NamedTuple):
     done: torch.tensor
 
 
-class Pendulum():
+class Pendulum:
     state_dim = 3
     action_dim = 1
 
@@ -106,8 +104,8 @@ class Pendulum():
         # torch.random.manual_seed(seed)
         # pos = torch_dist.Uniform(0., 1.).sample((1,))
         # ang = torch_dist.Uniform(low=-np.pi, high=np.pi).sample((1,))
-        pos = torch.tensor((0., ), dtype=torch.float32)
-        ang = torch.tensor((np.pi / 2, ), dtype=torch.float32)
+        pos = torch.tensor((0.,), dtype=torch.float32)
+        ang = torch.tensor((np.pi / 2,), dtype=torch.float32)
         obs = _th_to_obs(pos, ang)
         _state = torch.cat([pos, ang])
         reward, done, zero = torch.zeros(3)

@@ -16,8 +16,8 @@ class Agent(nn.Module):
         self.action_dim = action_dim
         self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim),
                                    nn.SELU(),
-                                   # nn.Linear(h_dim, h_dim),
-                                   # nn.SELU(),
+                                   nn.Linear(h_dim, h_dim),
+                                   nn.SELU(),
                                    nn.Linear(h_dim, h_dim),
                                    nn.SELU(),
                                    nn.Linear(h_dim, 2 * action_dim)

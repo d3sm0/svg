@@ -10,7 +10,7 @@ import torch.distributions as torch_dist
 
 
 class CartPole:
-    def __init__(self):
+    def __init__(self, horizon):
         self.gravity = 9.8
         self.masscart = 1.0
         self.masspole = 0.1
@@ -28,6 +28,7 @@ class CartPole:
         v = 0 # 1e-3
         p = 1e-3
         a = 1e-3
+        self.viewer = None
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds.
         high = np.array(
@@ -72,6 +73,70 @@ class CartPole:
 
         self.dynamics = f
         self.reward = reward
+        self.horizon = horizon
+        self.t= 0
+
+    def render(self, state, mode="human"):
+        screen_width = 600
+        screen_height = 400
+
+        world_width = self.x_threshold * 2
+        scale = screen_width / world_width
+        carty = 100  # TOP OF CART
+        polewidth = 10.0
+        polelen = scale * (2 * self.length)
+        cartwidth = 50.0
+        cartheight = 30.0
+
+        if self.viewer is None:
+            from gym.envs.classic_control import rendering
+
+            self.viewer = rendering.Viewer(screen_width, screen_height)
+            l, r, t, b = -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
+            axleoffset = cartheight / 4.0
+            cart = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
+            self.carttrans = rendering.Transform()
+            cart.add_attr(self.carttrans)
+            self.viewer.add_geom(cart)
+            l, r, t, b = (
+                -polewidth / 2,
+                polewidth / 2,
+                polelen - polewidth / 2,
+                -polewidth / 2,
+            )
+            pole = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
+            pole.set_color(0.8, 0.6, 0.4)
+            self.poletrans = rendering.Transform(translation=(0, axleoffset))
+            pole.add_attr(self.poletrans)
+            pole.add_attr(self.carttrans)
+            self.viewer.add_geom(pole)
+            self.axle = rendering.make_circle(polewidth / 2)
+            self.axle.add_attr(self.poletrans)
+            self.axle.add_attr(self.carttrans)
+            self.axle.set_color(0.5, 0.5, 0.8)
+            self.viewer.add_geom(self.axle)
+            self.track = rendering.Line((0, carty), (screen_width, carty))
+            self.track.set_color(0, 0, 0)
+            self.viewer.add_geom(self.track)
+
+            self._pole_geom = pole
+
+        # Edit the pole polygon vertex
+        pole = self._pole_geom
+        l, r, t, b = (
+            -polewidth / 2,
+            polewidth / 2,
+            polelen - polewidth / 2,
+            -polewidth / 2,
+        )
+        pole.v = [(l, b), (l, t), (r, t), (r, b)]
+
+        x = state
+        cartx = x[0] * scale + screen_width / 2.0  # MIDDLE OF CART
+        self.carttrans.set_translation(cartx, carty)
+        self.poletrans.set_rotation(-x[2])
+
+        return self.viewer.render(return_rgb_array=mode == "rgb_array")
 
     @property
     def observation_size(self):
@@ -97,13 +162,19 @@ class CartPole:
             or theta < -self.theta_threshold_radians
             or theta > self.theta_threshold_radians
         )
-        done  =  torch.tensor(done,dtype=torch.float32)
+        done = done or self.t == self.horizon
+        done = torch.tensor(done,dtype=torch.float32)
+        self.t +=1
 
         return State(obs, obs, reward, done)
 
     def reset(self,seed):
         torch.manual_seed(seed)
-        obs = torch_dist.Uniform(low=-0.05, high=0.05).sample(sample_shape=(4,))
+
+        #$ pos = torch.tensor((0., ), dtype=torch.float32)
+        #$ ang = torch.tensor((np.pi / 2, ), dtype=torch.float32)
+        # obs = torch_dist.Uniform(low=-0.05, high=0.05).sample(sample_shape=(4,))
+        obs = torch.tensor([0., 0.1, 0.1, 0. ])
         reward, done = torch.zeros(2)
         state = State(
             state=obs,
