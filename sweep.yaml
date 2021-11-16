@@ -16,10 +16,6 @@ parameters:
     distribution: int_uniform
     min: 32
     max: 200
-  train_horizon:
-    distribution: int_uniform
-    min: 10
-    max: 200
 early_terminate:
   type: hyperband
   s: 2
