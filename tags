@@ -1,0 +1,91 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	0.0.0	//
+ActionBound	envs/torch_envs.py	/^class ActionBound(NamedTuple):$/;"	c
+Agent	models.py	/^class Agent(nn.Module):$/;"	c
+Buffer	buffer.py	/^class Buffer:$/;"	c
+DEBUG	config.py	/^DEBUG = True$/;"	v
+ENV_IDS	envs/__init__.py	/^ENV_IDS = {"Lqg-v0", "DifferentiablePendulum-v0"}$/;"	v
+EnvSpec	envs/torch_envs.py	/^class EnvSpec(NamedTuple):$/;"	c
+F	models.py	/^from torch.nn import functional as F$/;"	x
+Implementation of Stochastic Value gradients (WIP)	readme.md	/^## Implementation of Stochastic Value gradients (WIP)$/;"	s
+Pendulum	envs/pendulum.py	/^class Pendulum():$/;"	c
+State	envs/pendulum.py	/^class State(typing.NamedTuple):$/;"	c
+Trajectory	buffer.py	/^class Trajectory:$/;"	c
+Transition	buffer.py	/^class Transition(NamedTuple):$/;"	c
+Wrapper	envs/torch_envs.py	/^class Wrapper(gym.Wrapper):$/;"	c
+__getitem__	buffer.py	/^    def __getitem__(self, item):$/;"	m	class:Trajectory
+__init__	buffer.py	/^    def __init__(self):$/;"	m	class:Trajectory
+__init__	buffer.py	/^    def __init__(self, max_size=int(1e4)):$/;"	m	class:Buffer
+__init__	envs/pendulum.py	/^    def __init__(self, **kwargs):$/;"	m	class:Pendulum
+__init__	envs/torch_envs.py	/^    def __init__(self, env, horizon, gamma=0.99):$/;"	m	class:Wrapper
+__init__	models.py	/^    def __init__(self, obs_dim, action_dim, h_dim=32):$/;"	m	class:Agent
+__iter__	buffer.py	/^    def __iter__(self):$/;"	m	class:Trajectory
+__len__	buffer.py	/^    def __len__(self):$/;"	m	class:Buffer
+__len__	buffer.py	/^    def __len__(self):$/;"	m	class:Trajectory
+__repr__	buffer.py	/^    def __repr__(self):$/;"	m	class:Trajectory
+_dynamics	envs/pendulum.py	/^        def _dynamics(obs, action):$/;"	f	member:Pendulum.__init__	file:
+_get_action_bound	envs/torch_envs.py	/^def _get_action_bound(bound: gym.spaces.Box):$/;"	f
+_obs_to_th	envs/pendulum.py	/^def _obs_to_th(obs):$/;"	f
+_reward	envs/pendulum.py	/^        def _reward(obs, action):$/;"	f	member:Pendulum.__init__	file:
+_th_to_obs	envs/pendulum.py	/^def _th_to_obs(th, thdot):$/;"	f
+_to_torch	envs/torch_envs.py	/^    def _to_torch(s, r, d):$/;"	m	class:Wrapper
+action_dim	envs/pendulum.py	/^    action_dim = 1$/;"	v	class:Pendulum
+action_size	envs/pendulum.py	/^    def action_size(self) -> int:$/;"	m	class:Pendulum
+actor	svg.py	/^def actor(trajectory, policy, dynamics, pi_optim, train_horizon):$/;"	f
+add	buffer.py	/^    def add(self, trajectory):$/;"	m	class:Buffer
+angle_normalize	envs/pendulum.py	/^def angle_normalize(x):$/;"	f
+append	buffer.py	/^    def append(self, transition):$/;"	m	class:Trajectory
+batch_size	config.py	/^batch_size = 32$/;"	v
+buddy	main.py	/^import experiment_buddy as buddy$/;"	I
+critic	svg.py	/^def critic(trajectory, policy, pi_optim, opt_epochs=1, batch_size=32):$/;"	f
+env_id	config.py	/^env_id = "DifferentiablePendulum-v0"$/;"	v
+eval_policy	eval_policy.py	/^def eval_policy(log_dir, eval_runs=1):$/;"	f
+forward	models.py	/^    def forward(self, s):$/;"	m	class:Agent
+gamma	config.py	/^gamma = 0.99$/;"	v
+gather_trajectory	svg.py	/^def gather_trajectory(env, agent):$/;"	f
+generate_episode	eval_policy.py	/^def generate_episode(env, policy):$/;"	f
+get_grad_norm	utils.py	/^def get_grad_norm(parameters):$/;"	f
+grad_clip	config.py	/^grad_clip = 5.$/;"	v
+h_dim	config.py	/^h_dim = 32/;"	v
+horizon	config.py	/^horizon = 200 if not DEBUG else 50$/;"	v
+l2_norm	utils.py	/^def l2_norm(parameters):$/;"	f
+log_dir	eval_policy.py	/^log_dir ="runs\/objects\/propagate_Mar25_03-10-58\/model-2000.pt"$/;"	v
+main	main.py	/^def main():$/;"	f
+make_env	envs/torch_envs.py	/^def make_env(env_id="lqg", horizon=200):$/;"	f
+max_steps	config.py	/^max_steps = int(1e6)$/;"	v
+nn	models.py	/^from torch import nn as nn$/;"	x
+nn	utils.py	/^import torch.nn as nn$/;"	I
+np	envs/pendulum.py	/^import numpy as np$/;"	I
+np	envs/torch_envs.py	/^import numpy as np$/;"	I
+observation_size	envs/pendulum.py	/^    def observation_size(self) -> int:$/;"	m	class:Pendulum
+opt_epochs	config.py	/^opt_epochs = 3$/;"	v
+optim	main.py	/^import torch.optim as optim$/;"	I
+policy_lr	config.py	/^policy_lr = 1e-3$/;"	v
+recreate_transition	svg.py	/^def recreate_transition(state, transition, dynamics, policy):$/;"	f
+regularizer	config.py	/^regularizer = 1e-4$/;"	v
+reset	envs/pendulum.py	/^    def reset(self, seed):$/;"	m	class:Pendulum
+reset	envs/torch_envs.py	/^    def reset(self, **kwargs):$/;"	m	class:Wrapper
+run	main.py	/^def run(env, agent, pi_optim):$/;"	f
+sample	models.py	/^    def sample(self, s):$/;"	m	class:Agent
+sample_batch	buffer.py	/^    def sample_batch(self, batch_size, shuffle=False):$/;"	m	class:Trajectory
+sample_partial	buffer.py	/^    def sample_partial(self, horizon):$/;"	m	class:Trajectory
+save_every	config.py	/^save_every = 100$/;"	v
+scalars_to_tb	main.py	/^def scalars_to_tb(writer, scalars, global_step):$/;"	f
+seed	config.py	/^seed= 33$/;"	v
+state_dim	envs/pendulum.py	/^    state_dim = 3$/;"	v	class:Pendulum
+step	envs/pendulum.py	/^    def step(self, state: State, action: torch.tensor) -> State:$/;"	m	class:Pendulum
+step	envs/torch_envs.py	/^    def step(self, action):$/;"	m	class:Wrapper
+torch_dist	envs/pendulum.py	/^import torch.distributions as torch_dist$/;"	I
+train	svg.py	/^def train(dynamics, policy, pi_optim, trajectory, model_optim):$/;"	f
+train_batches	buffer.py	/^    def train_batches(self, batch_size, n_epochs=1):$/;"	m	class:Buffer
+train_horizon	config.py	/^train_horizon = 5$/;"	v
+unroll	svg.py	/^def unroll(dynamics, policy, traj, state, gamma):$/;"	f
+value	models.py	/^    def value(self, x):$/;"	m	class:Agent
+weights_init	models.py	/^def weights_init(m):$/;"	f
