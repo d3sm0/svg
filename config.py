@@ -1,6 +1,6 @@
 import sys
 
-DEBUG = sys.gettrace() is not None
+DEBUG = True  # sys.gettrace() is not None
 
 max_steps = int(1e6)
 policy_lr = 1e-3
@@ -8,11 +8,11 @@ critic_lr = 1e-3
 horizon = 200
 buffer_size = int(1e3)
 gamma = 0.99
-save_every = 1000
-train_horizon = 5
+save_every = 100
+train_horizon = 20
 grad_clip = 5.
-batch_size = 32
-critic_epochs = 5
+batch_size = 64
+critic_epochs = 10
 regularizer = 1e-4
 seed = 33
 h_dim = 32

@@ -4,8 +4,9 @@ import numpy as np
 import torch
 import torch.distributions as torch_dist
 
-
 from os import path
+
+
 def angle_normalize(x):
     return ((x + np.pi) % (2 * np.pi)) - np.pi
 
@@ -33,7 +34,7 @@ class Pendulum():
     state_dim = 3
     action_dim = 1
 
-    def __init__(self,horizon=100):
+    def __init__(self, horizon=100):
 
         self.max_speed = 8
         self.max_torque = 2.0
@@ -45,14 +46,14 @@ class Pendulum():
         self.viewer = None
         self.state = None
         self.last_u = None
-        self.horizon =horizon
+        self.horizon = horizon
 
         def _dynamics(obs, action):
             th, thdot = _obs_to_th(obs)
             newthdot = (thdot + (-3 * self.g / (2 * self.l) * torch.sin(th + np.pi) + 3.0 / (
                     self.m * self.l ** 2) * action) * self.dt)
             newth = th + newthdot * self.dt
-            newthdot = torch.clamp( newthdot, -self.max_speed, self.max_speed)
+            newthdot = torch.clamp(newthdot, -self.max_speed, self.max_speed)
             next_state = _th_to_obs(newth, newthdot)
             return next_state
 
@@ -64,10 +65,9 @@ class Pendulum():
         self.dynamics = _dynamics
         self.reward = _reward
         self.t = 0
-        self.last_u=None
+        self.last_u = None
 
-
-    def render(self, mode="human"):
+    def render(self, state, mode="human"):
         if self.viewer is None:
             from gym.envs.classic_control import rendering
 
@@ -87,7 +87,7 @@ class Pendulum():
             self.img.add_attr(self.imgtrans)
 
         self.viewer.add_onetime(self.img)
-        self.pole_transform.set_rotation(self.state[0] + np.pi / 2)
+        self.pole_transform.set_rotation(state[0] + np.pi / 2)
         if self.last_u:
             self.imgtrans.scale = (-self.last_u / 2, np.abs(self.last_u) / 2)
 
@@ -103,9 +103,11 @@ class Pendulum():
 
     def reset(self, seed):
         self.t = 0
-        torch.random.manual_seed(seed)
-        pos = torch_dist.Uniform(0.,1.).sample((1,))
-        ang = torch_dist.Uniform(low=-np.pi, high=np.pi).sample((1,))
+        # torch.random.manual_seed(seed)
+        # pos = torch_dist.Uniform(0., 1.).sample((1,))
+        # ang = torch_dist.Uniform(low=-np.pi, high=np.pi).sample((1,))
+        pos = torch.tensor((0., ), dtype=torch.float32)
+        ang = torch.tensor((np.pi / 2, ), dtype=torch.float32)
         obs = _th_to_obs(pos, ang)
         _state = torch.cat([pos, ang])
         reward, done, zero = torch.zeros(3)
@@ -113,14 +115,13 @@ class Pendulum():
         return State(_state, obs, reward, done)
 
     def step(self, state: State, action: torch.tensor) -> State:
-        # action =  torch.clamp(action,-2., 2.)
         r = self.reward(state.obs, action)
         next_obs = self.dynamics(state.obs, action)
         pos, ang = _obs_to_th(next_obs)
         _state = torch.cat([pos, ang])
-        done =0.
-        if self.t ==self.horizon:
+        done = 0.
+        if self.t == self.horizon:
             done = 1.
         done = torch.tensor(done, dtype=torch.float32)
-        self.t +=1
+        self.t += 1
         return State(state=_state, obs=next_obs, reward=r, done=done)

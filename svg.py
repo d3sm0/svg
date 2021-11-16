@@ -63,7 +63,7 @@ def one_step(transition, agent, model, gamma):
 
 
 def actor_trajectory(trajectory, agent, model, pi_optim, gamma=0.99, horizon=10):
-    trajectory_partial = trajectory.sample_partial(horizon=horizon)
+    trajectory_partial = trajectory.get_trajectory() #horizon=horizon)
     # The policy needs to move slower than the critic
     # otherwise the truncation breaks and future value estimates
     # are gone
@@ -71,7 +71,7 @@ def actor_trajectory(trajectory, agent, model, pi_optim, gamma=0.99, horizon=10)
     value, metrics = unroll(trajectory_partial, agent, model, gamma)
     (-value).backward()
     grad_norm = utils.get_grad_norm(agent.actor.parameters())
-    # torch.nn.utils.clip_grad_value_(agent.actor.parameters(), 50)
+    torch.nn.utils.clip_grad_value_(agent.actor.parameters(), config.grad_clip)
     pi_optim.step()
     return {
         "actor/value": value.detach(),
@@ -84,6 +84,7 @@ def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99):
     total_loss = torch.tensor(0.)
     n_samples = 0
     pi_optim.zero_grad()
+
     for transition in replay_buffer.sample(batch_size=batch_size):
         value, metrics = one_step(transition, agent, model, gamma=gamma)
         (-value).mean().backward()
@@ -109,6 +110,7 @@ def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99,epochs=10):
             loss = td_loss(agent, s, r, s1, done, gamma).mean()
             loss.mean().backward()
             total_loss += loss
+            torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
             n_samples += 1
         pi_optim.step()
     grad_norm = utils.get_grad_norm(agent.critic.parameters())

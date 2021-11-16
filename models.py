@@ -26,8 +26,8 @@ class Agent(nn.Module):
         self.critic = nn.Sequential(
             nn.Linear(obs_dim, h_dim),
             nn.SELU(),
-            nn.Linear(h_dim, h_dim),
-            nn.SELU(),
+            # nn.Linear(h_dim, h_dim),
+            # nn.SELU(),
             nn.Linear(h_dim, h_dim),
             nn.SELU(),
             nn.Linear(h_dim, 1),
@@ -46,4 +46,4 @@ class Agent(nn.Module):
         with torch.no_grad():
             mu, sigma = self.forward(s)
         eps = torch.randn(size=mu.shape)
-        return mu + sigma*eps ,eps
+        return mu + sigma * eps, eps
