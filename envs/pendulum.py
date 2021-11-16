@@ -28,7 +28,6 @@ class State(typing.NamedTuple):
     reward: torch.tensor
     done: torch.tensor
 
-from gym.envs import  classic_control
 
 class Pendulum():
     state_dim = 3

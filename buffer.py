@@ -63,9 +63,15 @@ class Trajectory:
             idxs = idxs[torch.randperm(self.__len__())]
 
         idxs = torch.split(idxs, split_size_or_sections=batch_size)
+        new_idxs = []
+        for idx in idxs:
+            if len(idx) == 1:
+                continue
+            new_idxs.append(idx)
+        idxs = new_idxs
         for idx in idxs:
             batch = operator.itemgetter(*idx)(self._data)
-            s, a, r, s1, done,noise= list(zip(*batch))
+            s, a, r, s1, done, noise = list(zip(*batch))
             s = torch.stack(s)
             a = torch.stack(a)
             s1 = torch.stack(s1)
