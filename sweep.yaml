@@ -4,22 +4,18 @@ metric:
   name: train/return
   goal: maximize
 parameters:
-  critic_lr:
+  seed:
+    distribution: int_uniform
+    min: 1
+    max: 4
+  agent_lr:
     distribution: uniform
     min: 0.0001
     max: 0.001
-  critic_epochs:
+  train_horizon:
     distribution: int_uniform
     min: 1
     max: 20
-  batch_size:
-    distribution: int_uniform
-    min: 32
-    max: 200
-  train_horizon:
-    distribution: int_uniform
-    min: 10
-    max: 200
 early_terminate:
   type: hyperband
   s: 2

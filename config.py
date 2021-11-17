@@ -1,8 +1,8 @@
 import sys
 
-DEBUG = True  # sys.gettrace() is not None
+DEBUG = sys.gettrace() is not None
 
-max_steps = int(1e6)
+max_steps = int(1e5)
 policy_lr = 1e-3
 critic_lr = 1e-3
 horizon = 200

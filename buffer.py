@@ -1,5 +1,5 @@
+import dataclasses
 import operator
-from typing import NamedTuple
 
 import torch
 
@@ -7,13 +7,19 @@ import collections
 import random
 
 
-class Transition(NamedTuple):
+@dataclasses.dataclass
+class Transition:
     state: torch.tensor
     action: torch.tensor
     reward: torch.tensor
     next_state: torch.tensor
     done: torch.tensor
     noise: torch.tensor
+
+    def __iter__(self):
+        for attr in ["state","action","reward","next_state","done","noise"]:
+            yield getattr(self,attr)
+
 
 
 class ReplayBuffer(object):
@@ -96,6 +102,10 @@ class Trajectory:
         td_lambda = lambda_returns(torch.stack(rewards), torch.tensor(discounts), torch.stack(values), stop_target_gradients=False)
         # td_lambda = n_step_bootstrapped_returns(torch.stack(rewards), torch.tensor(discounts), torch.stack(values), n=4, stop_target_gradients=False)
         self._values = td_lambda
+
+    def get_partial(self, start_idx, horizon):
+        horizon = min(self.__len__() - start_idx, horizon)
+        return self._data[start_idx:start_idx + horizon]
 
     def sample_partial(self, horizon):
         # effective_horizon  = min(self.__len__(),horizon  -2 )
