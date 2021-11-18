@@ -54,7 +54,10 @@ def _unroll(trajectory, agent, model, gamma):
         # Remember as the policy drift  the action drift and thus the visited state
         # Assume we get the reward upon transition to s1 and not at s1
         total_return = total_return + (gamma ** t) * transition.reward
-    total_return += (1 - transition.done) * agent.value(transition.next_state).squeeze() * gamma ** T
+
+    next_action, _ = agent(transition.next_state)  # deterministic
+    # here we should add one step of value improvement and then use an off-policy critic
+    total_return += (1 - transition.done) * agent.value(transition.next_state, next_action).squeeze() * gamma ** T
     # we do not change the value function here, but we need to backprop throuhg
     # what happen if we replace the value function bootstrapped here with the one from pi^star?
     # this looks like the target of n-step td but off by one factor.
@@ -65,7 +68,8 @@ def _unroll(trajectory, agent, model, gamma):
 def _unroll_one_step(transition: Transition, agent, model, gamma):
     # this is only for simplicity
     transition, metrics = one_step(transition, agent, model)
-    one_step_return = transition.reward + gamma * agent.value(transition.next_state)
+    new_action,_ = agent(transition.next_state)
+    one_step_return = transition.reward + gamma * agent.value(transition.next_state,new_action)
     return one_step_return, transition, metrics
 
 
@@ -100,7 +104,7 @@ def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99, epoc
     total_loss = torch.tensor(0.)
     n_samples = 0
     for _ in range(epochs):
-        for transition, _ in replay_buffer.sample(batch_size=batch_size):
+        for transition in replay_buffer.sample(batch_size=batch_size):
             pi_optim.zero_grad()
             value, _, _ = unroll([transition], agent, model, gamma)
             (-value.mean()).backward()
@@ -121,14 +125,18 @@ def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99, epochs=10):
     total_loss = torch.tensor(0.)
     n_batches = 0
     for _ in range(epochs):
-            transition = repay_buffer.sample(batch_size)
-            agent.zero_grad()
-            loss = td_loss(agent, transition.state, transition.reward, transition.next_state, transition.done, gamma)
-            loss.mean().backward()
-            total_loss += loss.mean()
-            # torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
-            n_batches += 1
-            pi_optim.step()
+        transition = repay_buffer.sample(batch_size)
+        agent.zero_grad()
+        # this is quite incorrect as is not the same action but the one from a deterministcit policy
+
+        next_action,_ = agent(transition.next_state)
+        loss = q_loss(agent.value, transition.state, transition.action, transition.reward, transition.next_state,
+                      next_action.detach(), transition.done, gamma)
+        loss.mean().backward()
+        total_loss += loss.mean()
+        # torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
+        n_batches += 1
+        pi_optim.step()
     grad_norm = utils.get_grad_norm(agent.critic.parameters())
     total_loss = total_loss / n_batches
     return {
@@ -137,7 +145,14 @@ def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99, epochs=10):
     }
 
 
-def td_loss(policy, s, r, s1, done, gamma):
-    td = r + gamma * (1 - done) * policy.value(s1).squeeze() - policy.value(s).squeeze()
+def q_loss(value, s, a, r, s1, a1, done, gamma):
+    # sarsa style
+    td = r + gamma * (1 - done) * value(s1, a1).squeeze() - value(s, a).squeeze()
+    loss = (0.5 * (td ** 2))
+    return loss
+
+
+def td_loss(value, s, r, s1, done, gamma):
+    td = r + gamma * (1 - done) * value(s1).squeeze() - value(s).squeeze()
     loss = (0.5 * (td ** 2))
     return loss

@@ -24,13 +24,13 @@ class Agent(nn.Module):
                                    )
 
         self.critic = nn.Sequential(
-            nn.Linear(obs_dim, h_dim),
+            nn.Linear(obs_dim + action_dim, h_dim),
             nn.SELU(),
             # nn.Linear(h_dim, h_dim),
             # nn.SELU(),
             nn.Linear(h_dim, h_dim),
             nn.SELU(),
-            nn.Linear(h_dim, 1),
+            nn.Linear(h_dim, action_dim),
         )
 
     def forward(self, s):
@@ -39,7 +39,8 @@ class Agent(nn.Module):
         sigma = F.softplus(sigma)
         return mu, sigma
 
-    def value(self, x):
+    def value(self, x,y):
+        x = torch.cat([x,y],-1)
         return self.critic(x)
 
     def get_action(self, s):

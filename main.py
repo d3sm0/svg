@@ -43,9 +43,8 @@ def main():
     tb = buddy.deploy(proc_num=config.proc_num, host=config.host, sweep_yaml=config.sweep_yaml, disabled=config.DEBUG)
     env = Pendulum(horizon=config.horizon)  # agent follows brax convention
     agent = Agent(env.observation_size, env.action_size, h_dim=config.h_dim)
-    agent.critic = torch.load("critic")
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
-    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr * 0)
+    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr )
     run(env, agent, actor_optim, critic_optim, tb)
 
 
@@ -71,8 +70,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
                                  epochs=config.critic_epochs)
         # ascend the gradient on-policy
         # actor_info = svg.actor(trajectory, agent, env, actor_optim, batch_size=config.batch_size, epochs=config.actor_epochs)
-        actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim, horizon=config.train_horizon,
-                                          epochs=config.actor_epochs)
+        actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim, horizon=config.train_horizon, epochs=config.actor_epochs)
         if torch.isnan(actor_info.get("actor/value")):
             raise RuntimeError("Found nan in loss")
         tb.add_scalar("train/return", env_return, n_samples)
