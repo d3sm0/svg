@@ -65,6 +65,13 @@ class Pendulum:
         self.t = 0
         self.last_u = None
 
+    def close(self):
+        self.viewer.close()
+        self.viewer = None
+
+    def __del__(self):
+        self.close()
+
     def render(self, state, mode="human"):
         if self.viewer is None:
             from gym.envs.classic_control import rendering
