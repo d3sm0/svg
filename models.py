@@ -14,13 +14,13 @@ class Agent(nn.Module):
         super().__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, 2 * action_dim)
+        self.actor = nn.Sequential(# nn.Linear(obs_dim, h_dim),
+                                   # nn.SELU(),
+                                   # nn.Linear(h_dim, h_dim),
+                                   # nn.SELU(),
+                                   # nn.Linear(h_dim, h_dim),
+                                   # nn.SELU(),
+                                   nn.Linear(obs_dim, action_dim,bias=False)
                                    )
 
         self.critic = nn.Sequential(
@@ -35,8 +35,10 @@ class Agent(nn.Module):
 
     def forward(self, s):
         out = self.actor(s)
-        mu, sigma = torch.split(out, self.action_dim, -1)
-        sigma = F.softplus(sigma)
+        # mu, sigma = torch.split(out, self.action_dim, -1)
+        mu  = out
+        sigma = torch.ones_like(out)
+        # sigma = F.softplus(sigma)
         return mu, sigma
 
     def value(self, x):

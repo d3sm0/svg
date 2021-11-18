@@ -1,6 +1,7 @@
 import itertools
 
 import experiment_buddy as buddy
+import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
 from gym.envs.classic_control import PendulumEnv
@@ -43,9 +44,9 @@ def main():
     tb = buddy.deploy(proc_num=config.proc_num, host=config.host, sweep_yaml=config.sweep_yaml, disabled=config.DEBUG)
     env = Pendulum(horizon=config.horizon)  # agent follows brax convention
     agent = Agent(env.observation_size, env.action_size, h_dim=config.h_dim)
-    agent.critic = torch.load("critic")
+    # agent.critic = torch.load("critic")
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
-    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr * 0)
+    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr)
     run(env, agent, actor_optim, critic_optim, tb)
 
 
@@ -58,6 +59,15 @@ def render_policy(env, agent):
     env.close()
 
 
+def set_grad(v):
+    v.grad_list = []
+
+    def hook(m, g, y):
+        v.grad_list.append(g[1])
+
+    return hook
+
+
 def run(env, agent, actor_optim, critic_optim, tb):
     n_samples = 0
     for global_step in itertools.count():
@@ -65,10 +75,10 @@ def run(env, agent, actor_optim, critic_optim, tb):
             break
         from buffer import ReplayBuffer
         replay_buffer = ReplayBuffer(int(1e5))
+        # agent.actor.register_full_backward_hook(set_grad(agent.actor))
         trajectory, env_return = gather_trajectory(env, agent, replay_buffer, gamma=config.gamma)
         # keep a critic "off-policy"
-        critic_info = svg.critic(replay_buffer, agent, critic_optim, batch_size=config.batch_size,
-                                 epochs=config.critic_epochs)
+        critic_info = {}  # #svg.critic(replay_buffer, agent, critic_optim, batch_size=config.batch_size, epochs=config.critic_epochs)
         # ascend the gradient on-policy
         # actor_info = svg.actor(trajectory, agent, env, actor_optim, batch_size=config.batch_size, epochs=config.actor_epochs)
         actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim, horizon=config.train_horizon,
@@ -79,6 +89,10 @@ def run(env, agent, actor_optim, critic_optim, tb):
         scalars_to_tb(tb, {**actor_info, **critic_info, "duration": len(trajectory)}, n_samples)
         n_samples += len(trajectory)
 
+        # grad_list =torch.stack(agent.actor.grad_list).squeeze()
+        # fig,ax = plot_grad_list(grad_list)
+        # tb.add_figure("grads",fig, n_samples)
+        # agent.actor.grad_list.clear()
         if global_step % config.save_every == 0 and global_step > 0 and config.should_render:
             render_policy(env, agent)
             # trajectory, env_return = gather_trajectory(env, agent, replay_buffer)
@@ -86,6 +100,19 @@ def run(env, agent, actor_optim, critic_optim, tb):
         if global_step % config.save_every == 0:
             print(f"Saved at {global_step}. Progress:{n_samples / config.max_steps:.2f}")
         torch.save(agent.critic, "critic")
+
+
+def plot_grad_list(grad_list):
+    s_theta, c_theta, theta_dot = torch.split(grad_list, 1, 1)
+    # sin_theta, cos_theta, theta_dot
+
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+
+    ax.plot(s_theta, label="s_theta")
+    ax.plot(c_theta, label="c_theta")
+    ax.plot(theta_dot, label="theta_dot")
+    plt.legend()
+    return fig, ax
 
 
 if __name__ == "__main__":

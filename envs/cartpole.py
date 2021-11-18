@@ -76,6 +76,14 @@ class CartPole:
         self.horizon = horizon
         self.t= 0
 
+    def close(self):
+        if self.viewer is not None:
+            self.viewer.close()
+            self.viewer = None
+
+    def __del__(self):
+        self.close()
+
     def render(self, state, mode="human"):
         screen_width = 600
         screen_height = 400

@@ -2,18 +2,19 @@ import sys
 
 DEBUG = sys.gettrace() is not None
 
-max_steps = int(1e5)
+max_steps = int(1e6)
 policy_lr = 1e-3
 critic_lr = 1e-3
-horizon = 200
+horizon =  100
 buffer_size = int(1e3)
 gamma = 0.99
 save_every = 100
-train_horizon = 5
+train_horizon = horizon
 grad_clip = 5.
 batch_size = 64
 critic_epochs = 5
-actor_epochs = 5
+actor_epochs = 1
+extrapolation_epochs = 1
 
 regularizer = 1e-4
 seed = 33
@@ -24,7 +25,7 @@ if not DEBUG:
     host = "mila"
     sweep_yaml = "sweep.yaml"
 else:
-    should_render = True
+    should_render = False
     proc_num = 1
     host = ""
     sweep_yaml = ""  # k"sweep.yaml"
