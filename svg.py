@@ -4,6 +4,7 @@ import torch
 import torch.distributions as torch_dist
 from torch._vmap_internals import vmap
 
+import config
 import utils
 from buffer import Transition, Trajectory
 
@@ -54,12 +55,35 @@ def _unroll(trajectory, agent, model, gamma):
         # Remember as the policy drift  the action drift and thus the visited state
         # Assume we get the reward upon transition to s1 and not at s1
         total_return = total_return + (gamma ** t) * transition.reward
+
+    extrapolate(agent, model, transition, gamma ** (T + 1) * (1-transition.done))
     total_return += (1 - transition.done) * agent.value(transition.next_state).squeeze() * gamma ** T
     # we do not change the value function here, but we need to backprop throuhg
     # what happen if we replace the value function bootstrapped here with the one from pi^star?
     # this looks like the target of n-step td but off by one factor.
     # assume determintic action for the bootrap
     return total_return, transition, metrics
+
+
+import torch.optim as optim
+
+
+def extrapolate(agent, model, transition, gamma):
+    local_opt = optim.SGD(agent.critic.parameters(), lr=1e-2)
+    transition = Transition(*list(map(lambda x: x.repeat(config.batch_size, 1), transition)))
+    for _ in range(config.extrapolation_epochs):
+        local_opt.zero_grad()
+        with torch.no_grad():
+            mu, std = agent(transition.next_state.detach())
+            next_action = mu + std * torch.randn(size=(config.batch_size, 1))
+            r_t = vmap(model.reward)(transition.next_state, next_action)
+            f_t = vmap(model.dynamics)(transition.next_state, next_action)
+        v_t = agent.value(f_t).squeeze()
+        v_tm = agent.value(transition.next_state.detach()).squeeze()
+        td = (r_t + gamma * v_t - v_tm)
+        error = 0.5 * td ** 2
+        error.mean().backward()
+        local_opt.step()
 
 
 def _unroll_one_step(transition: Transition, agent, model, gamma):
@@ -121,14 +145,14 @@ def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99, epochs=10):
     total_loss = torch.tensor(0.)
     n_batches = 0
     for _ in range(epochs):
-            transition = repay_buffer.sample(batch_size)
-            agent.zero_grad()
-            loss = td_loss(agent, transition.state, transition.reward, transition.next_state, transition.done, gamma)
-            loss.mean().backward()
-            total_loss += loss.mean()
-            # torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
-            n_batches += 1
-            pi_optim.step()
+        transition = repay_buffer.sample(batch_size)
+        agent.zero_grad()
+        loss = td_loss(agent, transition.state, transition.reward, transition.next_state, transition.done, gamma)
+        loss.mean().backward()
+        total_loss += loss.mean()
+        # torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
+        n_batches += 1
+        pi_optim.step()
     grad_norm = utils.get_grad_norm(agent.critic.parameters())
     total_loss = total_loss / n_batches
     return {

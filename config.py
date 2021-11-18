@@ -14,6 +14,7 @@ grad_clip = 5.
 batch_size = 64
 critic_epochs = 5
 actor_epochs = 5
+extrapolation_epochs = 1
 
 regularizer = 1e-4
 seed = 33

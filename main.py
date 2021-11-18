@@ -43,9 +43,9 @@ def main():
     tb = buddy.deploy(proc_num=config.proc_num, host=config.host, sweep_yaml=config.sweep_yaml, disabled=config.DEBUG)
     env = Pendulum(horizon=config.horizon)  # agent follows brax convention
     agent = Agent(env.observation_size, env.action_size, h_dim=config.h_dim)
-    agent.critic = torch.load("critic")
+    # agent.critic = torch.load("critic")
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
-    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr * 0)
+    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr)
     run(env, agent, actor_optim, critic_optim, tb)
 
 
