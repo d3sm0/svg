@@ -66,8 +66,9 @@ class Pendulum:
         self.last_u = None
 
     def close(self):
-        self.viewer.close()
-        self.viewer = None
+        if self.viewer is not None:
+            self.viewer.close()
+            self.viewer = None
 
     def __del__(self):
         self.close()
