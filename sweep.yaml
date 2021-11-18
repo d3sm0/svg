@@ -8,14 +8,14 @@ parameters:
     distribution: int_uniform
     min: 1
     max: 4
-  agent_lr:
+  policy_lr:
     distribution: uniform
     min: 0.0001
     max: 0.001
   train_horizon:
     distribution: int_uniform
-    min: 1
-    max: 20
+    min: 2
+    max: 50
   actor_epochs:
     distribution: int_uniform
     min: 1

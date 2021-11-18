@@ -82,6 +82,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
 
         if global_step % config.save_every == 0:
             print(f"Saved at {global_step}. Progress:{n_samples / config.max_steps:.2f}")
+        # torch.save(agent.critic, "critic")
 
 
 if __name__ == "__main__":
