@@ -1,5 +1,4 @@
 from dataclasses import replace
-from typing import Any
 
 import torch
 import torch.distributions as torch_dist
@@ -29,9 +28,9 @@ def verify_transition(transition, state, action, reward, next_state):
     assert torch.allclose(transition.reward, reward)
 
 
-def one_step(transition, agent, model) -> tuple[Transition, dict[str, Any]]:
+def one_step(transition, agent, model):
     mu, std = agent.forward(transition.state)
-    action = mu + std * transition.noise
+    action = mu + std * transition.noise.detach()
     h = torch_dist.Normal(mu, std).entropy().mean()
     reward = vmap(model.reward)(transition.state, action)
     next_state = vmap(model.dynamics)(transition.state, action)
@@ -122,9 +121,9 @@ def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99, epochs=10):
     total_loss = torch.tensor(0.)
     n_batches = 0
     for _ in range(epochs):
-        for (s, a, r, s1, done, noise), target in repay_buffer.sample(batch_size):
+            transition = repay_buffer.sample(batch_size)
             agent.zero_grad()
-            loss = td_loss(agent, s, r, s1, done, gamma)
+            loss = td_loss(agent, transition.state, transition.reward, transition.next_state, transition.done, gamma)
             loss.mean().backward()
             total_loss += loss.mean()
             # torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)

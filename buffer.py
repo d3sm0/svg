@@ -17,9 +17,8 @@ class Transition:
     noise: torch.tensor
 
     def __iter__(self):
-        for attr in ["state","action","reward","next_state","done","noise"]:
-            yield getattr(self,attr)
-
+        for attr in ["state", "action", "reward", "next_state", "done", "noise"]:
+            yield getattr(self, attr)
 
 
 class ReplayBuffer(object):
@@ -51,8 +50,7 @@ class ReplayBuffer(object):
             next_states.append(next_state)
             dones.append(done)
             noises.append(noise)
-        return Transition(torch.stack(states), torch.stack(actions), torch.stack(rewards), torch.stack(next_states),
-                          torch.stack(dones), torch.stack(noises))
+        return Transition(torch.stack(states), torch.stack(actions), torch.stack(rewards), torch.stack(next_states), torch.stack(dones), torch.stack(noises))
 
     def sample(self, batch_size):
         idxes = [random.randint(0, len(self._storage) - 1) for _ in range(batch_size)]
@@ -62,7 +60,6 @@ class ReplayBuffer(object):
 class Trajectory:
     def __init__(self):
         self._data = []
-        self._values = []
 
     def __getitem__(self, item):
         return self._data[item]
@@ -76,9 +73,8 @@ class Trajectory:
     def __repr__(self):
         return f"N:{self.__len__()}"
 
-    def append(self, transition, value):
+    def append(self, transition):
         self._data.append(transition)
-        self._values.append(value)
 
     def get_trajectory(self):
         return self._data
@@ -94,12 +90,13 @@ class Trajectory:
             values.append(self._values[t])
             masks.append(transition.done)
 
-        discounts = [d  * (1-m) for d,m in zip(discounts[1:] , masks[1:])]
+        discounts = [d * (1 - m) for d, m in zip(discounts[1:], masks[1:])]
         values = values[1:] + [torch.tensor(0.)]
         rewards = rewards[1:]
 
         from utils import n_step_bootstrapped_returns, lambda_returns
-        td_lambda = lambda_returns(torch.stack(rewards), torch.tensor(discounts), torch.stack(values), stop_target_gradients=False)
+        td_lambda = lambda_returns(torch.stack(rewards), torch.tensor(discounts), torch.stack(values),
+                                   stop_target_gradients=False)
         # td_lambda = n_step_bootstrapped_returns(torch.stack(rewards), torch.tensor(discounts), torch.stack(values), n=4, stop_target_gradients=False)
         self._values = td_lambda
 
@@ -108,10 +105,8 @@ class Trajectory:
         return self._data[start_idx:start_idx + horizon]
 
     def sample_partial(self, horizon):
-        # effective_horizon  = min(self.__len__(),horizon  -2 )
         start_idx = torch.randint(self.__len__() - 1, (1,))
-        horizon = min(self.__len__() - start_idx, horizon)
-        return self._data[start_idx:start_idx + horizon]
+        return self.get_partial(start_idx, horizon)
 
     def sample(self, batch_size, shuffle=False):
         idxs = torch.arange(self.__len__())
@@ -134,6 +129,4 @@ class Trajectory:
             r = torch.stack(r)
             done = torch.stack(done)
             noise = torch.stack(noise)
-            td_lambda = operator.itemgetter(*idx)(self._values)
-            td_lambda = torch.stack(td_lambda)
-            yield Transition(s, a, r, s1, done, noise), td_lambda
+            yield Transition(s, a, r, s1, done, noise)
