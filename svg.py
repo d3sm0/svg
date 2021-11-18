@@ -1,5 +1,4 @@
 from dataclasses import replace
-from typing import Any
 
 import torch
 import torch.distributions as torch_dist
@@ -29,7 +28,7 @@ def verify_transition(transition, state, action, reward, next_state):
     assert torch.allclose(transition.reward, reward)
 
 
-def one_step(transition, agent, model) -> tuple[Transition, dict[str, Any]]:
+def one_step(transition, agent, model):
     mu, std = agent.forward(transition.state)
     action = mu + std * transition.noise
     h = torch_dist.Normal(mu, std).entropy().mean()
