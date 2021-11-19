@@ -6,14 +6,14 @@ max_steps = int(1e5)
 policy_lr = 1e-3
 critic_lr = 1e-3
 horizon = 200
-buffer_size = int(1e3)
+buffer_size = int(1e4)
 gamma = 0.99
 save_every = 100
 train_horizon = 5
 grad_clip = 5.
 batch_size = 64
-critic_epochs = 5
-actor_epochs = 1
+critic_epochs = 10
+actor_epochs = 10
 
 regularizer = 1e-4
 seed = 33

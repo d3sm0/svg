@@ -21,7 +21,7 @@ class Transition:
             yield getattr(self, attr)
 
 
-class ReplayBuffer(object):
+class ReplayBuffer:
     def __init__(self, size):
         self._storage = []
         self._maxsize = size
@@ -53,80 +53,5 @@ class ReplayBuffer(object):
         return Transition(torch.stack(states), torch.stack(actions), torch.stack(rewards), torch.stack(next_states), torch.stack(dones), torch.stack(noises))
 
     def sample(self, batch_size):
-        idxes = [random.randint(0, len(self._storage) - 1) for _ in range(batch_size)]
+        idxes =torch.randint(len(self._storage) - 1,(batch_size,))
         return self._encode_sample(idxes)
-
-
-class Trajectory:
-    def __init__(self):
-        self._data = []
-
-    def __getitem__(self, item):
-        return self._data[item]
-
-    def __len__(self):
-        return len(self._data)
-
-    def __iter__(self):
-        return iter(self._data)
-
-    def __repr__(self):
-        return f"N:{self.__len__()}"
-
-    def append(self, transition):
-        self._data.append(transition)
-
-    def get_trajectory(self):
-        return self._data
-
-    def get_returns(self, gamma=0.99):
-        discounts = [1.]
-        rewards = [0.]
-        masks = [0.]
-        values = []
-        for t, transition in enumerate(self._data):
-            discounts.append(gamma ** t)
-            rewards.append(transition.reward)
-            values.append(self._values[t])
-            masks.append(transition.done)
-
-        discounts = [d * (1 - m) for d, m in zip(discounts[1:], masks[1:])]
-        values = values[1:] + [torch.tensor(0.)]
-        rewards = rewards[1:]
-
-        from utils import n_step_bootstrapped_returns, lambda_returns
-        td_lambda = lambda_returns(torch.stack(rewards), torch.tensor(discounts), torch.stack(values),
-                                   stop_target_gradients=False)
-        # td_lambda = n_step_bootstrapped_returns(torch.stack(rewards), torch.tensor(discounts), torch.stack(values), n=4, stop_target_gradients=False)
-        self._values = td_lambda
-
-    def get_partial(self, start_idx, horizon):
-        horizon = min(self.__len__() - start_idx, horizon)
-        return self._data[start_idx:start_idx + horizon]
-
-    def sample_partial(self, horizon):
-        start_idx = torch.randint(self.__len__() - 1, (1,))
-        return self.get_partial(start_idx, horizon)
-
-    def sample(self, batch_size, shuffle=False):
-        idxs = torch.arange(self.__len__())
-        if shuffle:
-            idxs = idxs[torch.randperm(self.__len__())]
-
-        idxs = torch.split(idxs, split_size_or_sections=batch_size)
-        new_idxs = []
-        for idx in idxs:
-            if len(idx) == 1:
-                continue
-            new_idxs.append(idx)
-        idxs = new_idxs
-        for idx in idxs:
-            batch = operator.itemgetter(*idx)(self._data)
-            s, a, r, s1, done, noise = list(zip(*batch))
-            s = torch.stack(s)
-            a = torch.stack(a)
-            s1 = torch.stack(s1)
-            r = torch.stack(r)
-            done = torch.stack(done)
-            noise = torch.stack(noise)
-            yield Transition(s, a, r, s1, done, noise)

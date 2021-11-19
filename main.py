@@ -7,7 +7,7 @@ from gym.envs.classic_control import PendulumEnv
 
 import config
 import svg
-from buffer import Trajectory, Transition, ReplayBuffer
+from buffer import Transition, ReplayBuffer
 from envs.lqr import Ulqr
 from envs.pendulum import Pendulum
 from envs.cartpole import CartPole
@@ -23,18 +23,16 @@ def scalars_to_tb(writer, scalars, global_step):
 
 def gather_trajectory(env, agent, replay_buffer, gamma=0.99):
     state = env.reset(0)
-    trajectory = Trajectory()
     total_return = 0
     t = 0
     while not state.done:
         action, eps = agent.get_action(state.obs)
         next_state = env.step(state, action)
-        trajectory.append(Transition(state.obs, action, next_state.reward, next_state.obs, next_state.done, eps))
         replay_buffer.append(Transition(state.obs, action, next_state.reward, next_state.obs, next_state.done, eps))
         state = next_state
         total_return += state.reward * gamma ** t
         t += 1
-    return trajectory, total_return
+    return {"return": total_return, "duration": t}
 
 
 def main():
@@ -44,7 +42,7 @@ def main():
     env = Pendulum(horizon=config.horizon)  # agent follows brax convention
     agent = Agent(env.observation_size, env.action_size, h_dim=config.h_dim)
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
-    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr )
+    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr)
     run(env, agent, actor_optim, critic_optim, tb)
 
 
@@ -59,23 +57,28 @@ def render_policy(env, agent):
 
 def run(env, agent, actor_optim, critic_optim, tb):
     n_samples = 0
+    replay_buffer = ReplayBuffer(config.buffer_size)
     for global_step in itertools.count():
         if n_samples >= config.max_steps:
             break
-        from buffer import ReplayBuffer
-        replay_buffer = ReplayBuffer(int(1e5))
-        trajectory, env_return = gather_trajectory(env, agent, replay_buffer, gamma=config.gamma)
+        env_info = gather_trajectory(env, agent, replay_buffer, gamma=config.gamma)
         # keep a critic "off-policy"
-        critic_info = svg.critic(replay_buffer, agent, critic_optim, batch_size=config.batch_size,
+        critic_info = svg.critic(replay_buffer,
+                                 agent,
+                                 critic_optim,
+                                 batch_size=config.batch_size,
                                  epochs=config.critic_epochs)
-        # ascend the gradient on-policy
-        # actor_info = svg.actor(trajectory, agent, env, actor_optim, batch_size=config.batch_size, epochs=config.actor_epochs)
-        actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim, horizon=config.train_horizon, epochs=config.actor_epochs)
+        # ascend the gradient off-policy
+        actor_info = svg.actor(replay_buffer,
+                               agent,
+                               actor_optim,
+                               batch_size=config.batch_size,
+                               epochs=config.actor_epochs)
+
         if torch.isnan(actor_info.get("actor/value")):
             raise RuntimeError("Found nan in loss")
-        tb.add_scalar("train/return", env_return, n_samples)
-        scalars_to_tb(tb, {**actor_info, **critic_info, "duration": len(trajectory)}, n_samples)
-        n_samples += len(trajectory)
+        scalars_to_tb(tb, {**actor_info, **critic_info, **env_info},n_samples)
+        n_samples += env_info.get("duration")
 
         if global_step % config.save_every == 0 and global_step > 0 and config.should_render:
             render_policy(env, agent)
@@ -83,7 +86,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
 
         if global_step % config.save_every == 0:
             print(f"Saved at {global_step}. Progress:{n_samples / config.max_steps:.2f}")
-        torch.save(agent.critic, "critic")
+            torch.save(agent, "model.pt")
 
 
 if __name__ == "__main__":

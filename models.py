@@ -14,14 +14,8 @@ class Agent(nn.Module):
         super().__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, 2 * action_dim)
-                                   )
+        self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.SELU(), nn.Linear(h_dim, h_dim), nn.SELU(),
+                                   nn.Linear(h_dim, h_dim), nn.SELU(), nn.Linear(h_dim, 2 * action_dim))
 
         self.critic = nn.Sequential(
             nn.Linear(obs_dim + action_dim, h_dim),
@@ -30,7 +24,7 @@ class Agent(nn.Module):
             # nn.SELU(),
             nn.Linear(h_dim, h_dim),
             nn.SELU(),
-            nn.Linear(h_dim, action_dim),
+            nn.Linear(h_dim,1),
         )
 
     def forward(self, s):
@@ -39,12 +33,17 @@ class Agent(nn.Module):
         sigma = F.softplus(sigma)
         return mu, sigma
 
-    def value(self, x,y):
-        x = torch.cat([x,y],-1)
-        return self.critic(x)
+    def value(self, state, action):
+        state_action = torch.cat([state, action], -1)
+        return self.critic(state_action)
 
     def get_action(self, s):
         with torch.no_grad():
             mu, sigma = self.forward(s)
         eps = torch.randn(size=mu.shape)
         return mu + sigma * eps, eps
+
+    def rsample(self, s):
+        mu, sigma = self.forward(s)
+        # eps = torch.randn(size=mu.shape)
+        return mu  #+ sigma * eps
