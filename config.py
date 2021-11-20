@@ -12,7 +12,7 @@ save_every = 100
 train_horizon = 5
 grad_clip = 5.
 batch_size = 64
-critic_epochs = 10
+critic_epochs = 5
 actor_epochs = 10
 
 regularizer = 1e-4

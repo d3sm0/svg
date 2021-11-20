@@ -75,8 +75,9 @@ def run(env, agent, actor_optim, critic_optim, tb):
                                batch_size=config.batch_size,
                                epochs=config.actor_epochs)
 
-        if torch.isnan(actor_info.get("actor/value")):
-            raise RuntimeError("Found nan in loss")
+        if not torch.isfinite(actor_info.get("actor/grad_norm")) or not torch.isfinite(critic_info.get("critic/grad_norm")):
+            print("Found nan in loss")
+            break
         scalars_to_tb(tb, {**actor_info, **critic_info, **env_info},n_samples)
         n_samples += env_info.get("duration")
 

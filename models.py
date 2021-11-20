@@ -1,3 +1,5 @@
+import copy
+
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -45,5 +47,5 @@ class Agent(nn.Module):
 
     def rsample(self, s):
         mu, sigma = self.forward(s)
-        # eps = torch.randn(size=mu.shape)
-        return mu  #+ sigma * eps
+        eps = torch.randn(size=mu.shape).detach()
+        return mu + sigma * eps

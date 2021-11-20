@@ -1,5 +1,6 @@
 import torch
 
+import config
 import utils
 
 
@@ -10,11 +11,11 @@ def actor(replay_buffer, agent, pi_optim, batch_size=32, epochs=1):
         transition = replay_buffer.sample(batch_size=batch_size)
         pi_optim.zero_grad()
         # this backprpop via the policy
-        value = agent.value(transition.state, agent.rsample(transition.state))  
+        value = agent.value(transition.state, agent.rsample(transition.state))
         (-value.mean()).backward()
+        torch.nn.utils.clip_grad_value_(agent.actor.parameters(), config.grad_clip)
         pi_optim.step()
         total_loss += value.mean().detach()
-        n_samples += 1
     total_loss = total_loss / n_samples
     grad_norm = utils.get_grad_norm(agent.actor.parameters())
     return {
@@ -26,22 +27,19 @@ def actor(replay_buffer, agent, pi_optim, batch_size=32, epochs=1):
 def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99, epochs=10):
     # TODO n-step return here
     total_loss = torch.tensor(0.)
-    n_batches = 0
     for _ in range(epochs):
         transition = repay_buffer.sample(batch_size)
         agent.zero_grad()
         # this is quite incorrect as is not the same action but the one from a deterministcit policy
-
-        next_action, _ = agent(transition.next_state)
+        next_action, _ = agent.get_action(transition.next_state)
         loss = q_loss(agent.value, transition.state, transition.action, transition.reward, transition.next_state,
-                      next_action.detach(), transition.done, gamma)
+                      next_action, transition.done, gamma)
+        torch.nn.utils.clip_grad_value_(agent.value.parameters(), config.grad_clip)
         loss.mean().backward()
         total_loss += loss.mean()
-        # torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
-        n_batches += 1
         pi_optim.step()
     grad_norm = utils.get_grad_norm(agent.critic.parameters())
-    total_loss = total_loss / n_batches
+    total_loss = total_loss / epochs
     return {
         "critic/td": total_loss.detach(),
         "critic/grad_norm": grad_norm.detach(),
@@ -49,14 +47,6 @@ def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99, epochs=10):
 
 
 def q_loss(value, s, a, r, s1, a1, done, gamma):
-    # sarsa style
-    # TODO impelment target network
-    td = r + gamma * (1 - done) * value(s1, a1).detach() - value(s, a)
-    loss = (0.5 * (td**2))
-    return loss
-
-
-def td_loss(value, s, r, s1, done, gamma):
-    td = r + gamma * (1 - done) * value(s1).squeeze() - value(s).squeeze()
-    loss = (0.5 * (td**2))
+    td = r + gamma * (1 - done) * value(s1, a1).squeeze().detach() - value(s, a).squeeze()
+    loss = (0.5 * (td ** 2))
     return loss
