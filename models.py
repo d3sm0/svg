@@ -12,10 +12,7 @@ def weights_init(m):
         torch.nn.init.zeros_(m.bias)
 
 
-def polyak_update(params: Iterable[torch.nn.Parameter],
-                  target_params: Iterable[torch.nn.Parameter],
-                  tau: float = 1.,
-                  ) -> None:
+def polyak_update(params, target_params, tau=1.):
     with torch.no_grad():
         # zip does not raise an exception if length of parameters does not match.
         for param, target_param in zip(params, target_params):
@@ -54,10 +51,10 @@ class Agent(nn.Module):
     def value(self, state, action):
         state_action = torch.cat([state, action], -1)
         return self.critic(state_action)
+
     def target_value(self, state, action):
         state_action = torch.cat([state, action], -1)
         return self.target_critic(state_action)
-
 
     def get_action(self, s):
         with torch.no_grad():
@@ -70,5 +67,5 @@ class Agent(nn.Module):
         eps = torch.randn(size=mu.shape).detach()
         return mu + sigma * eps
 
-    def update_target(self,tau):
-        polyak_update(self.critic.parameters(),self.target_critic.parameters(),tau)
+    def update_target(self, tau):
+        polyak_update(self.critic.parameters(), self.target_critic.parameters(), tau)
