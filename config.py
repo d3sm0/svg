@@ -13,7 +13,9 @@ train_horizon = 5
 grad_clip = 5.
 batch_size = 64
 critic_epochs = 5
-actor_epochs = 10
+actor_epochs = 5
+tau = 0.01
+update_target_every = 5
 
 regularizer = 1e-4
 seed = 33

@@ -75,6 +75,9 @@ def run(env, agent, actor_optim, critic_optim, tb):
                                batch_size=config.batch_size,
                                epochs=config.actor_epochs)
 
+        if global_step % config.update_target_every == 0:
+            agent.update_target(config.tau)
+
         if not torch.isfinite(actor_info.get("actor/grad_norm")) or not torch.isfinite(critic_info.get("critic/grad_norm")):
             print("Found nan in loss")
             break

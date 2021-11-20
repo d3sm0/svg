@@ -121,8 +121,8 @@ class Pendulum:
         return State(_state, obs, reward, done)
 
     def step(self, state: State, action: torch.tensor) -> State:
-        r = self.reward(state.obs, action)
         next_obs = self.dynamics(state.obs, action)
+        r = self.reward(next_obs, action)
         pos, ang = _obs_to_th(next_obs)
         _state = torch.cat([pos, ang])
         done = 0.
