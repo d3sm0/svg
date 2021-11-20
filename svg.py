@@ -98,16 +98,14 @@ def actor_trajectory(replay_buffer: Trajectory, agent, model, pi_optim, horizon,
 
 def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99, epochs=1):
     total_loss = torch.tensor(0.)
-    n_samples = 0
     for _ in range(epochs):
-        for transition, _ in replay_buffer.sample(batch_size=batch_size):
-            pi_optim.zero_grad()
-            value, _, _ = unroll([transition], agent, model, gamma)
-            (-value.mean()).backward()
-            pi_optim.step()
-            total_loss += value.mean().detach()
-            n_samples += 1
-    total_loss = total_loss / n_samples
+        transition = replay_buffer.sample(batch_size=batch_size)
+        pi_optim.zero_grad()
+        value, _, _ = _unroll_one_step(transition, agent, model, gamma)
+        (-value.mean()).backward()
+        pi_optim.step()
+        total_loss += value.mean().detach()
+    total_loss = total_loss / epochs
     grad_norm = utils.get_grad_norm(agent.actor.parameters())
     return {
         "actor/value": total_loss,
@@ -119,18 +117,16 @@ def actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99, epoc
 def critic(repay_buffer, agent, pi_optim, batch_size=32, gamma=0.99, epochs=10):
     # TODO n-step return here
     total_loss = torch.tensor(0.)
-    n_batches = 0
     for _ in range(epochs):
-            transition = repay_buffer.sample(batch_size)
-            agent.zero_grad()
-            loss = td_loss(agent, transition.state, transition.reward, transition.next_state, transition.done, gamma)
-            loss.mean().backward()
-            total_loss += loss.mean()
-            # torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
-            n_batches += 1
-            pi_optim.step()
+        transition = repay_buffer.sample(batch_size)
+        agent.zero_grad()
+        loss = td_loss(agent, transition.state, transition.reward, transition.next_state, transition.done, gamma)
+        loss.mean().backward()
+        total_loss += loss.mean()
+        # torch.nn.utils.clip_grad_value_(agent.critic.parameters(), 50.)
+        pi_optim.step()
     grad_norm = utils.get_grad_norm(agent.critic.parameters())
-    total_loss = total_loss / n_batches
+    total_loss = total_loss / epochs
     return {
         "critic/td": total_loss.detach(),
         "critic/grad_norm": grad_norm.detach(),

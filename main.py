@@ -3,15 +3,11 @@ import itertools
 import experiment_buddy as buddy
 import torch
 import torch.optim as optim
-from gym.envs.classic_control import PendulumEnv
 
 import config
 import svg
 from buffer import Trajectory, Transition, ReplayBuffer
-from envs.lqr import Ulqr
 from envs.pendulum import Pendulum
-from envs.cartpole import CartPole
-from eval_policy import eval_policy
 from models import Agent
 
 
@@ -43,9 +39,8 @@ def main():
     tb = buddy.deploy(proc_num=config.proc_num, host=config.host, sweep_yaml=config.sweep_yaml, disabled=config.DEBUG)
     env = Pendulum(horizon=config.horizon)  # agent follows brax convention
     agent = Agent(env.observation_size, env.action_size, h_dim=config.h_dim)
-    agent.critic = torch.load("critic")
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
-    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr * 0)
+    critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr)
     run(env, agent, actor_optim, critic_optim, tb)
 
 
@@ -60,19 +55,18 @@ def render_policy(env, agent):
 
 def run(env, agent, actor_optim, critic_optim, tb):
     n_samples = 0
+    replay_buffer = ReplayBuffer(int(1e5))
     for global_step in itertools.count():
         if n_samples >= config.max_steps:
             break
-        from buffer import ReplayBuffer
-        replay_buffer = ReplayBuffer(int(1e5))
         trajectory, env_return = gather_trajectory(env, agent, replay_buffer, gamma=config.gamma)
         # keep a critic "off-policy"
         critic_info = svg.critic(replay_buffer, agent, critic_optim, batch_size=config.batch_size,
                                  epochs=config.critic_epochs)
         # ascend the gradient on-policy
-        # actor_info = svg.actor(trajectory, agent, env, actor_optim, batch_size=config.batch_size, epochs=config.actor_epochs)
-        actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim, horizon=config.train_horizon,
-                                          epochs=config.actor_epochs)
+        actor_info = svg.actor(replay_buffer, agent, env, actor_optim, batch_size=config.batch_size, epochs=config.actor_epochs)
+        # actor_info = svg.actor_trajectory(trajectory, agent, env, actor_optim, horizon=config.train_horizon,
+        #                                   epochs=config.actor_epochs)
         if torch.isnan(actor_info.get("actor/value")):
             raise RuntimeError("Found nan in loss")
         tb.add_scalar("train/return", env_return, n_samples)
