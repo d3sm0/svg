@@ -1,12 +1,9 @@
 import math
-import gym
-from gym import spaces, logger
-from gym.utils import seeding
-import numpy as np
-from envs.pendulum import State
 
 import torch
-import torch.distributions as torch_dist
+from gym.utils import seeding
+
+from envs.pendulum import State
 
 
 class CartPole:
@@ -25,20 +22,13 @@ class CartPole:
         self.theta_threshold_radians = 12 * 2 * math.pi / 360
         self.x_threshold = 2.4
 
-        v = 0 # 1e-3
-        p = 1e-3
+        v = 1e-3
+        p = 5e-3
         a = 1e-3
         self.viewer = None
+
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds.
-        high = np.array(
-            [
-                self.x_threshold * 2,
-                np.finfo(np.float32).max,
-                self.theta_threshold_radians * 2,
-                np.finfo(np.float32).max, ],
-            dtype=np.float32,
-        )
 
         def reward(state, action):
             alive_bonus = 10
@@ -51,7 +41,7 @@ class CartPole:
             return r
 
         def f(state, action):
-            x, x_dot, theta, theta_dot = torch.split(state,1)
+            x, x_dot, theta, theta_dot = torch.split(state, 1)
             force = action
             costheta = torch.cos(theta)
             sintheta = torch.sin(theta)
@@ -74,7 +64,7 @@ class CartPole:
         self.dynamics = f
         self.reward = reward
         self.horizon = horizon
-        self.t= 0
+        self.t = 0
 
     def render(self, state, mode="human"):
         screen_width = 600
@@ -151,7 +141,7 @@ class CartPole:
         return [seed]
 
     def step(self, state, action):
-        obs= self.dynamics(state.state, action)
+        obs = self.dynamics(state.state, action)
         reward = self.reward(state.state, action)
 
         x, theta = obs[0], obs[2]
@@ -163,18 +153,18 @@ class CartPole:
             or theta > self.theta_threshold_radians
         )
         done = done or self.t == self.horizon
-        done = torch.tensor(done,dtype=torch.float32)
-        self.t +=1
+        done = torch.tensor(done, dtype=torch.float32)
+        self.t += 1
 
         return State(obs, obs, reward, done)
 
-    def reset(self,seed):
+    def reset(self, seed):
         torch.manual_seed(seed)
 
-        #$ pos = torch.tensor((0., ), dtype=torch.float32)
-        #$ ang = torch.tensor((np.pi / 2, ), dtype=torch.float32)
+        # $ pos = torch.tensor((0., ), dtype=torch.float32)
+        # $ ang = torch.tensor((np.pi / 2, ), dtype=torch.float32)
         # obs = torch_dist.Uniform(low=-0.05, high=0.05).sample(sample_shape=(4,))
-        obs = torch.tensor([0., 0.1, 0.1, 0. ])
+        obs = torch.tensor([0., 0.1, 0.1, 0.])
         reward, done = torch.zeros(2)
         state = State(
             state=obs,
@@ -183,3 +173,11 @@ class CartPole:
             done=done,
         )
         return state
+
+    def close(self):
+        if self.viewer is not None:
+            self.viewer.close()
+            self.viewer = None
+
+    def __del__(self):
+        self.close()
