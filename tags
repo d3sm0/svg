@@ -1,0 +1,153 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	0.0.0	//
+Actor	models.py	/^class Actor(nn.Module):$/;"	c
+ActorCritc	models.py	/^class ActorCritc(nn.Module):$/;"	c
+ActorValue	models.py	/^class ActorValue(nn.Module):$/;"	c
+Buffer	buffer.py	/^class Buffer:$/;"	c
+CartPole	envs/cartpole.py	/^class CartPole:$/;"	c
+Critic	models.py	/^class Critic(nn.Module):$/;"	c
+DEBUG	config.py	/^DEBUG = sys.gettrace() is not None$/;"	v
+F	models.py	/^from torch.nn import functional as F$/;"	x
+Implementation of Stochastic Value gradients (WIP)	readme.md	/^## Implementation of Stochastic Value gradients (WIP)$/;"	s
+Pendulum	envs/pendulum.py	/^class Pendulum:$/;"	c
+QFunction	models.py	/^class QFunction(nn.Module):$/;"	c
+SVG	agents.py	/^class SVG:$/;"	c
+SVGOne	agents.py	/^class SVGOne(SVG):$/;"	c
+SVGZero	agents.py	/^class SVGZero(SVG):$/;"	c
+State	envs/pendulum.py	/^class State(typing.NamedTuple):$/;"	c
+Trajectory	buffer.py	/^class Trajectory:$/;"	c
+Transition	buffer.py	/^class Transition:$/;"	c
+Ulqr	envs/lqr.py	/^class Ulqr():$/;"	c
+__del__	envs/cartpole.py	/^    def __del__(self):$/;"	m	class:CartPole
+__del__	envs/pendulum.py	/^    def __del__(self):$/;"	m	class:Pendulum
+__init__	agents.py	/^    def __init__(self, agent):$/;"	m	class:SVGOne
+__init__	agents.py	/^    def __init__(self, agent, horizon: int = 0):$/;"	m	class:SVGZero
+__init__	agents.py	/^    def __init__(self, agent, horizon: int = 2):$/;"	m	class:SVG
+__init__	buffer.py	/^    def __init__(self):$/;"	m	class:Trajectory
+__init__	buffer.py	/^    def __init__(self, buffer_size):$/;"	m	class:Buffer
+__init__	envs/cartpole.py	/^    def __init__(self, horizon):$/;"	m	class:CartPole
+__init__	envs/lqr.py	/^    def __init__(self, horizon=200):$/;"	m	class:Ulqr
+__init__	envs/pendulum.py	/^    def __init__(self, horizon=100):$/;"	m	class:Pendulum
+__init__	models.py	/^    def __init__(self, obs_dim, action_dim, h_dim=100):$/;"	m	class:Actor
+__init__	models.py	/^    def __init__(self, obs_dim, action_dim, h_dim=100):$/;"	m	class:ActorCritc
+__init__	models.py	/^    def __init__(self, obs_dim, action_dim, h_dim=100):$/;"	m	class:ActorValue
+__init__	models.py	/^    def __init__(self, obs_dim, action_dim, h_dim=100):$/;"	m	class:QFunction
+__init__	models.py	/^    def __init__(self, obs_dim, h_dim=100):$/;"	m	class:Critic
+__iter__	buffer.py	/^    def __iter__(self):$/;"	m	class:Trajectory
+__iter__	buffer.py	/^    def __iter__(self):$/;"	m	class:Transition
+__len__	buffer.py	/^    def __len__(self):$/;"	m	class:Buffer
+__len__	buffer.py	/^    def __len__(self):$/;"	m	class:Trajectory
+_dynamics	envs/lqr.py	/^        def _dynamics(state, action):$/;"	f	member:Ulqr.__init__	file:
+_dynamics	envs/pendulum.py	/^        def _dynamics(obs, action):$/;"	f	member:Pendulum.__init__	file:
+_obs_to_th	envs/pendulum.py	/^def _obs_to_th(obs):$/;"	f
+_optimal_control	envs/lqr.py	/^    def _optimal_control(self, state):$/;"	m	class:Ulqr
+_reward	envs/lqr.py	/^        def _reward(state, action):$/;"	f	member:Ulqr.__init__	file:
+_reward	envs/pendulum.py	/^        def _reward(obs, action):$/;"	f	member:Pendulum.__init__	file:
+_th_to_obs	envs/pendulum.py	/^def _th_to_obs(th, thdot):$/;"	f
+action_dim	envs/pendulum.py	/^    action_dim = 1$/;"	v	class:Pendulum
+action_size	envs/cartpole.py	/^    def action_size(self):$/;"	m	class:CartPole
+action_size	envs/lqr.py	/^    def action_size(self):$/;"	m	class:Ulqr
+action_size	envs/pendulum.py	/^    def action_size(self) -> int:$/;"	m	class:Pendulum
+actor	agents.py	/^    def actor(self):$/;"	m	class:SVG
+actor_epochs	config.py	/^actor_epochs = 5$/;"	v
+angle_normalize	envs/pendulum.py	/^def angle_normalize(x):$/;"	f
+append	buffer.py	/^    def append(self, transition: Transition):$/;"	m	class:Buffer
+append	buffer.py	/^    def append(self, transition: Transition):$/;"	m	class:Trajectory
+batch_size	config.py	/^batch_size = 64$/;"	v
+buddy	main.py	/^import experiment_buddy as buddy$/;"	I
+buffer_size	config.py	/^buffer_size = int(1e5)$/;"	v
+close	envs/cartpole.py	/^    def close(self):$/;"	m	class:CartPole
+close	envs/lqr.py	/^    def close(self):$/;"	m	class:Ulqr
+close	envs/pendulum.py	/^    def close(self):$/;"	m	class:Pendulum
+critic	agents.py	/^    def critic(self):$/;"	m	class:SVG
+critic_epochs	config.py	/^critic_epochs = 5$/;"	v
+critic_lr	config.py	/^critic_lr = 1e-3$/;"	v
+device	config.py	/^device = torch.device("cpu")$/;"	v
+env	test_brax_to_torch.py	/^env = create_gym_env("inverted_pendulum")$/;"	v
+env	test_brax_to_torch.py	/^env = to_torch.JaxToTorchWrapper(env)$/;"	v
+env_id	config.py	/^env_id = "inverted_pendulum"$/;"	v
+eval_policy	eval_policy.py	/^def eval_policy(env, agent, log_dir, eval_runs=1):$/;"	f
+extend	buffer.py	/^    def extend(self, trajectory: Trajectory):$/;"	m	class:Buffer
+f	envs/cartpole.py	/^        def f(state, action):$/;"	f	member:CartPole.__init__	file:
+forward	models.py	/^    def forward(self, s):$/;"	m	class:Actor
+forward	models.py	/^    def forward(self, state_and_action):$/;"	m	class:QFunction
+gamma	config.py	/^gamma = 0.99$/;"	v
+gather_trajectory	main.py	/^def gather_trajectory(env, agent, gamma=0.99):$/;"	f
+generate_episode	eval_policy.py	/^def generate_episode(env, policy, max_steps=200):$/;"	f
+get_action	agents.py	/^    def get_action(self, s):$/;"	m	class:SVG
+get_grad_norm	utils.py	/^def get_grad_norm(parameters):$/;"	f
+get_partial	buffer.py	/^    def get_partial(self, start_idx, horizon):$/;"	m	class:Trajectory
+get_trajectory	buffer.py	/^    def get_trajectory(self):$/;"	m	class:Trajectory
+get_value_gradient	agents.py	/^    def get_value_gradient(self, trajectory, dynamics, gamma):$/;"	m	class:SVG
+get_value_gradient	agents.py	/^    def get_value_gradient(self, transitions, dynamics, gamma):$/;"	m	class:SVGOne
+get_value_gradient	agents.py	/^    def get_value_gradient(self, transitions, dynamics, gamma):$/;"	m	class:SVGZero
+get_value_loss	agents.py	/^    def get_value_loss(self, batch, gamma):$/;"	m	class:SVG
+get_value_loss	agents.py	/^    def get_value_loss(self, batch, gamma):$/;"	m	class:SVGZero
+grad_clip	config.py	/^grad_clip = 5.$/;"	v
+h_dim	config.py	/^h_dim = 32$/;"	v
+has_equal_params	agents.py	/^def has_equal_params(params, target_params):$/;"	f
+horizon	agents.py	/^    horizon: int = 2$/;"	v	class:SVG
+horizon	config.py	/^horizon = 200$/;"	v
+host	config.py	/^    host = ""$/;"	v
+host	config.py	/^    host = "mila"$/;"	v
+l2_norm	utils.py	/^def l2_norm(parameters):$/;"	f
+main	main.py	/^def main():$/;"	f
+max_steps	config.py	/^max_steps = int(1e6)$/;"	v
+nn	models.py	/^from torch import nn as nn$/;"	x
+np	envs/pendulum.py	/^import numpy as np$/;"	I
+observation_size	envs/cartpole.py	/^    def observation_size(self):$/;"	m	class:CartPole
+observation_size	envs/lqr.py	/^    def observation_size(self):$/;"	m	class:Ulqr
+observation_size	envs/pendulum.py	/^    def observation_size(self) -> int:$/;"	m	class:Pendulum
+one_step	svg.py	/^def one_step(transition, agent, model):$/;"	f
+optim	main.py	/^import torch.optim as optim$/;"	I
+optimize_actor	svg.py	/^def optimize_actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99, epochs=1):$/;"	f
+optimize_critic	svg.py	/^def optimize_critic(repay_buffer, agent, critic_optim, batch_size=32, gamma=0.99, epochs=1):$/;"	f
+policy_lr	config.py	/^policy_lr = 1e-3$/;"	v
+polyak_update	models.py	/^def polyak_update(params, target_params, tau=1.):$/;"	f
+proc_num	config.py	/^    proc_num = 1$/;"	v
+q_loss	svg.py	/^def q_loss(r, q_tm1, q_t, done, gamma):$/;"	f
+regularizer	config.py	/^regularizer = 1e-4$/;"	v
+render	envs/cartpole.py	/^    def render(self, state, mode="human"):$/;"	m	class:CartPole
+render	envs/lqr.py	/^    def render(self, state, mode='human'):$/;"	m	class:Ulqr
+render	envs/pendulum.py	/^    def render(self, state, mode="human"):$/;"	m	class:Pendulum
+render_policy	main.py	/^def render_policy(env, agent):$/;"	f
+reset	envs/cartpole.py	/^    def reset(self, seed):$/;"	m	class:CartPole
+reset	envs/lqr.py	/^    def reset(self, random_key):$/;"	m	class:Ulqr
+reset	envs/pendulum.py	/^    def reset(self, seed):$/;"	m	class:Pendulum
+reward	envs/cartpole.py	/^        def reward(state, action):$/;"	f	member:CartPole.__init__	file:
+rsample	agents.py	/^    def rsample(self, state):$/;"	m	class:SVGZero
+run	main.py	/^def run(env, agent, actor_optim, critic_optim, tb):$/;"	f
+sample	buffer.py	/^    def sample(self, batch_size: int):$/;"	m	class:Buffer
+sample	buffer.py	/^    def sample(self, horizon, batch_size=1):$/;"	m	class:Trajectory
+save_every	config.py	/^save_every = 100$/;"	v
+scalars_to_tb	main.py	/^def scalars_to_tb(writer, scalars, global_step):$/;"	f
+seed	config.py	/^seed = 33$/;"	v
+seed	envs/cartpole.py	/^    def seed(self, seed=None):$/;"	m	class:CartPole
+should_render	config.py	/^    should_render = False$/;"	v
+state	test_brax_to_torch.py	/^state =env.reset()$/;"	v
+state_dim	envs/pendulum.py	/^    state_dim = 3$/;"	v	class:Pendulum
+step	envs/cartpole.py	/^    def step(self, state, action):$/;"	m	class:CartPole
+step	envs/lqr.py	/^    def step(self, state, action):$/;"	m	class:Ulqr
+step	envs/pendulum.py	/^    def step(self, state: State, action: torch.tensor) -> State:$/;"	m	class:Pendulum
+sweep_yaml	config.py	/^    sweep_yaml = ""  # "sweep.yaml"$/;"	v
+sweep_yaml	config.py	/^    sweep_yaml = ""  # k"sweep.yaml"$/;"	v
+target_critic	agents.py	/^    def target_critic(self):$/;"	m	class:SVGZero
+target_value	agents.py	/^    def target_value(self, state, action):$/;"	m	class:SVGZero
+tau	config.py	/^tau = 0.01$/;"	v
+td_loss	svg.py	/^def td_loss(r, v_tm1, v_t, done, gamma):$/;"	f
+torch_dist	svg.py	/^import torch.distributions as torch_dist$/;"	I
+train_horizon	config.py	/^train_horizon = 5$/;"	v
+unroll_trajectory	svg.py	/^def unroll_trajectory(trajectory, agent, model, gamma):$/;"	f
+update_target	agents.py	/^    def update_target(self, tau):$/;"	m	class:SVG
+update_target	agents.py	/^    def update_target(self, tau=1.):$/;"	m	class:SVGZero
+update_target_every	config.py	/^update_target_every = 5$/;"	v
+value	agents.py	/^    def value(self, state, action):$/;"	m	class:SVGZero
+verify_transition	svg.py	/^def verify_transition(transition, state, action, reward, next_state):$/;"	f
+weights_init	models.py	/^def weights_init(m):$/;"	f

@@ -1,3 +1,5 @@
 gym
+brax
 tensorboardX
+torch==1.9.0+cu111
 -e git+https://github.com/ministry-of-silly-code/experiment_buddy#egg=experiment_buddy
