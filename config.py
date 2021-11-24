@@ -1,6 +1,6 @@
-import sys
+import torch
 
-DEBUG = sys.gettrace() is not None
+DEBUG = True  # sys.gettrace() is not None
 
 max_steps = int(1e5)
 policy_lr = 1e-3
@@ -18,6 +18,10 @@ actor_epochs = 5
 regularizer = 1e-4
 seed = 33
 h_dim = 32
+tau = 0.5
+update_target_every = 10
+
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 if not DEBUG:
     should_render = False
     proc_num = 5
