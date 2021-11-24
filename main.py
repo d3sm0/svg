@@ -67,6 +67,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
             break
         trajectory, env_info = gather_trajectory(env, agent, gamma=config.gamma)
         replay_buffer.extend(trajectory)
+        print(env_info)
         # keep a critic "off-policy"
         critic_info = svg.optimize_critic(replay_buffer,
                                           agent,

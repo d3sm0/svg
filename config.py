@@ -5,7 +5,7 @@ DEBUG = True  # sys.gettrace() is not None
 max_steps = int(1e5)
 policy_lr = 1e-3
 critic_lr = 1e-3
-horizon = 1000
+horizon = 200
 buffer_size = int(1e4)
 gamma = 0.99
 save_every = 100
@@ -18,8 +18,8 @@ actor_epochs = 5
 regularizer = 1e-4
 seed = 33
 h_dim = 32
-tau = 0.5
-update_target_every = 10
+tau = 0.01
+update_target_every = 5
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 if not DEBUG:

@@ -22,8 +22,10 @@ def polyak_update(params, target_params, tau=1.):
 class Actor(nn.Module):
     def __init__(self, obs_dim, action_dim, h_dim=100):
         super().__init__()
-        self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.SELU(), nn.Linear(h_dim, h_dim), nn.SELU(),
-                                   nn.Linear(h_dim, h_dim), nn.SELU(), nn.Linear(h_dim, 2 * action_dim))
+        self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.SELU(),
+                                   # nn.Linear(h_dim, h_dim), nn.SELU(),
+                                   # nn.Linear(h_dim, h_dim), nn.SELU(),
+                                   nn.Linear(h_dim, 2 * action_dim))
 
     def forward(self, s):
         out = self.actor(s)
@@ -53,8 +55,8 @@ class QFunction(nn.Module):
         self._critic = nn.Sequential(
             nn.Linear(obs_dim + action_dim, h_dim),
             nn.SELU(),
-            # nn.Linear(h_dim, h_dim),
-            # nn.SELU(),
+            nn.Linear(h_dim, h_dim),
+            nn.SELU(),
             nn.Linear(h_dim, h_dim),
             nn.SELU(),
             nn.Linear(h_dim, 1),
