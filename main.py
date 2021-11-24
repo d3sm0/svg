@@ -11,6 +11,7 @@ from buffer import Trajectory, Transition, Buffer
 from envs.pendulum import Pendulum
 # from envs.cartpole import CartPole
 from models import ActorCritc, ActorValue
+from brax.envs import to_torch, create_gym_env
 
 
 # this should go in buddy
@@ -20,17 +21,19 @@ def scalars_to_tb(writer, scalars, global_step):
 
 
 def gather_trajectory(env, agent, gamma=0.99):
-    state = env.reset(0)
+    state = env.reset()
     trajectory = Trajectory()
     total_return = 0
     t = 0
-    while not state.done:
-        action, eps = agent.get_action(state.obs)
-        next_state = env.step(state, action)
-        trajectory.append(Transition(state.obs, action, next_state.reward, next_state.obs, next_state.done, eps))
+    while True:
+        action, eps = agent.get_action(state)
+        next_state, reward, done, _ = env.step(action)
+        trajectory.append(Transition(state, action, reward, next_state, done, eps))
         state = next_state
-        total_return += state.reward * gamma**t
+        total_return += reward * gamma**t
         t += 1
+        if done:
+            break
     return trajectory, {"return": total_return, "duration": t}
 
 
@@ -43,7 +46,11 @@ def main():
                       disabled=config.DEBUG,
                       wandb_kwargs=dict(entity="ihvg"))
     env = Pendulum(horizon=config.horizon)  # agent follows brax convention
-    agent = ActorValue(env.observation_size, env.action_size, h_dim=config.h_dim)
+
+    env = create_gym_env("inverted_pendulum")
+    env = to_torch.JaxToTorchWrapper(env)
+
+    agent = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim)
     agent = agents.SVGZero(agent, horizon=config.train_horizon)
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
     critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr)
@@ -53,9 +60,9 @@ def main():
 def render_policy(env, agent):
     state = env.reset(0)
     while not state.done:
-        action, _ = agent.get_action(state.obs)
-        state = env.step(state, action)
-        env.render(state.obs)
+        action, _ = agent.get_action(state)
+        state, _ = env.step(action)
+        # env.render(state.obs)
     env.close()
 
 
@@ -67,7 +74,6 @@ def run(env, agent, actor_optim, critic_optim, tb):
             break
         trajectory, env_info = gather_trajectory(env, agent, gamma=config.gamma)
         replay_buffer.extend(trajectory)
-        print(env_info)
         # keep a critic "off-policy"
         critic_info = svg.optimize_critic(replay_buffer,
                                           agent,
