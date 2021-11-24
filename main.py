@@ -9,7 +9,6 @@ import config
 import svg
 from buffer import Trajectory, Transition, Buffer
 from envs.pendulum import Pendulum
-# from envs.cartpole import CartPole
 from models import ActorCritc, ActorValue
 from brax.envs import to_torch, create_gym_env
 
@@ -45,12 +44,11 @@ def main():
                       sweep_yaml=config.sweep_yaml,
                       disabled=config.DEBUG,
                       wandb_kwargs=dict(entity="ihvg"))
-    env = Pendulum(horizon=config.horizon)  # agent follows brax convention
 
-    env = create_gym_env("inverted_pendulum")
+    env = create_gym_env(config.env_id, device=config.device)
     env = to_torch.JaxToTorchWrapper(env)
 
-    agent = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim)
+    agent = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim).to(config.device)
     agent = agents.SVGZero(agent, horizon=config.train_horizon)
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
     critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr)

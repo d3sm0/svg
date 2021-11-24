@@ -1,12 +1,14 @@
 import torch
+import sys
 
-DEBUG = True  # sys.gettrace() is not None
+DEBUG = sys.gettrace() is not None
+env_id = "inverted_pendulum"
 
-max_steps = int(1e5)
+max_steps = int(1e6)
 policy_lr = 1e-3
 critic_lr = 1e-3
 horizon = 200
-buffer_size = int(1e4)
+buffer_size = int(1e5)
 gamma = 0.99
 save_every = 100
 train_horizon = 5
@@ -21,12 +23,12 @@ h_dim = 32
 tau = 0.01
 update_target_every = 5
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+device = torch.device("cpu")
 if not DEBUG:
     should_render = False
-    proc_num = 5
+    proc_num = 1
     host = "mila"
-    sweep_yaml = "sweep.yaml"
+    sweep_yaml = ""  # "sweep.yaml"
 else:
     should_render = False
     proc_num = 1
