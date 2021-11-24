@@ -19,20 +19,22 @@ def polyak_update(params, target_params, tau=1.):
             torch.add(target_param.data, param.data, alpha=tau, out=target_param.data)
 
 
-class Agent(nn.Module):
+class Actor(nn.Module):
     def __init__(self, obs_dim, action_dim, h_dim=100):
         super().__init__()
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-        self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, 2 * action_dim)
-                                   )
+        self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.SELU(), nn.Linear(h_dim, h_dim), nn.SELU(),
+                                   nn.Linear(h_dim, h_dim), nn.SELU(), nn.Linear(h_dim, 2 * action_dim))
 
+    def forward(self, s):
+        out = self.actor(s)
+        mu, sigma = torch.split(out, out.shape[-1] // 2, -1)
+        sigma = F.softplus(sigma)
+        return mu, sigma
+
+
+class Critic(nn.Module):
+    def __init__(self, obs_dim, h_dim=100):
+        super().__init__()
         self.critic = nn.Sequential(
             nn.Linear(obs_dim, h_dim),
             nn.SELU(),
@@ -43,39 +45,35 @@ class Agent(nn.Module):
             nn.Linear(h_dim, 1),
         )
 
-    def forward(self, s):
-        out = self.actor(s)
-        mu, sigma = torch.split(out, self.action_dim, -1)
-        sigma = F.softplus(sigma)
-        return mu, sigma
 
-    def value(self, x):
-        return self.critic(x)
-
-
-class Actorq(nn.Module):
+class QFunction(nn.Module):
     def __init__(self, obs_dim, action_dim, h_dim=100):
         super().__init__()
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
 
-        self.actor = nn.Sequential(nn.Linear(obs_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, h_dim),
-                                   nn.SELU(),
-                                   nn.Linear(h_dim, 2 * action_dim)
-                                   )
-
-        self.critic = nn.Sequential(
+        self._critic = nn.Sequential(
             nn.Linear(obs_dim + action_dim, h_dim),
             nn.SELU(),
-            nn.Linear(h_dim, h_dim),
-            nn.SELU(),
+            # nn.Linear(h_dim, h_dim),
+            # nn.SELU(),
             nn.Linear(h_dim, h_dim),
             nn.SELU(),
             nn.Linear(h_dim, 1),
         )
 
+    def forward(self, state_and_action):
+        return self._critic(state_and_action)
+
+
+class ActorCritc(nn.Module):
+    def __init__(self, obs_dim, action_dim, h_dim=100):
+        super(ActorCritc, self).__init__()
+        self.actor = Actor(obs_dim, action_dim, h_dim)
+        self.critic = Critic(obs_dim, h_dim)
+
+
+class ActorValue(nn.Module):
+    def __init__(self, obs_dim, action_dim, h_dim=100):
+        super(ActorValue, self).__init__()
+        self.actor = Actor(obs_dim, action_dim, h_dim)
+        self.critic = QFunction(obs_dim, action_dim, h_dim)
         self.target_critic = copy.deepcopy(self.critic)

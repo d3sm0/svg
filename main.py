@@ -8,9 +8,9 @@ import agents
 import config
 import svg
 from buffer import Trajectory, Transition, Buffer
-# from envs.pendulum import Pendulum
-from envs.cartpole import CartPole
-from models import Agent
+from envs.pendulum import Pendulum
+# from envs.cartpole import CartPole
+from models import ActorCritc, ActorValue
 
 
 # this should go in buddy
@@ -42,9 +42,9 @@ def main():
                       sweep_yaml=config.sweep_yaml,
                       disabled=config.DEBUG,
                       wandb_kwargs=dict(entity="ihvg"))
-    env = CartPole(horizon=config.horizon)  # agent follows brax convention
-    agent = Agent(env.observation_size, env.action_size, h_dim=config.h_dim)
-    agent = agents.SVG(agent, horizon=config.train_horizon)
+    env = Pendulum(horizon=config.horizon)  # agent follows brax convention
+    agent = ActorValue(env.observation_size, env.action_size, h_dim=config.h_dim)
+    agent = agents.SVGZero(agent, horizon=config.train_horizon)
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
     critic_optim = optim.Adam(agent.critic.parameters(), lr=config.critic_lr)
     run(env, agent, actor_optim, critic_optim, tb)
@@ -74,7 +74,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
                                           batch_size=config.batch_size,
                                           epochs=config.critic_epochs)
         # ascend the gradient on-policy
-        actor_info = svg.optimize_actor(trajectory,
+        actor_info = svg.optimize_actor(replay_buffer,
                                         agent,
                                         env,
                                         actor_optim,

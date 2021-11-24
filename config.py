@@ -28,7 +28,7 @@ if not DEBUG:
     host = "mila"
     sweep_yaml = "sweep.yaml"
 else:
-    should_render = True
+    should_render = False
     proc_num = 1
     host = ""
     sweep_yaml = ""  # k"sweep.yaml"

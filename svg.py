@@ -55,8 +55,8 @@ def td_loss(policy, s, r, s1, done, gamma):
     return loss
 
 
-def q_loss(agent, s, a, r, s1, a1, done, gamma):
-    td = r + gamma * (1 - done) * agent.target_value(s1, a1).squeeze().detach() - agent.value(s, a).squeeze()
+def q_loss(r, q_tm1, q_t,  done, gamma):
+    td = r + gamma * (1 - done) * q_t.detach() - q_tm1
     loss = (0.5 * (td ** 2))
     return loss
 
@@ -64,7 +64,7 @@ def q_loss(agent, s, a, r, s1, a1, done, gamma):
 def optimize_actor(replay_buffer, agent, model, pi_optim, batch_size=32, gamma=0.99, epochs=1):
     total_loss = torch.tensor(0.)
     for _ in range(epochs):
-        transition = replay_buffer.sample(horizon=agent.horizon, batch_size=batch_size)
+        transition = replay_buffer.sample(batch_size=batch_size)
         pi_optim.zero_grad()
         value, metrics = agent.get_value_gradient(transition, model, gamma)
         (-value.mean()).backward()
