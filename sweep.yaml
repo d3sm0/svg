@@ -8,11 +8,19 @@ parameters:
     distribution: int_uniform
     min: 1
     max: 4
-  train_horizon:
-    distribution: int_uniform
-    min: 2
-    max: 50
   actor_epochs:
+    distribution: int_uniform
+    min: 1
+    max: 10
+  critic_epochs:
+    distribution: int_uniform
+    min: 1
+    max: 10
+  tau:
+    distribution: uniform
+    min: 0.01
+    max: 1.0
+  update_target_every:
     distribution: int_uniform
     min: 1
     max: 10
