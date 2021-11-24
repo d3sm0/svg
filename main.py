@@ -29,7 +29,7 @@ def gather_trajectory(env, agent, gamma=0.99):
         next_state = env.step(state, action)
         trajectory.append(Transition(state.obs, action, next_state.reward, next_state.obs, next_state.done, eps))
         state = next_state
-        total_return += state.reward * gamma ** t
+        total_return += state.reward * gamma**t
         t += 1
     return trajectory, {"return": total_return, "duration": t}
 
@@ -84,10 +84,11 @@ def run(env, agent, actor_optim, critic_optim, tb):
         if global_step % config.update_target_every == 0:
             agent.update_target(config.tau)
 
-        if not torch.isfinite(actor_info.get("actor/grad_norm")) or not torch.isfinite(critic_info.get("critic/grad_norm")):
+        if not torch.isfinite(actor_info.get("actor/grad_norm")) or not torch.isfinite(
+                critic_info.get("critic/grad_norm")):
             print("Found nan in loss")
             break
-        scalars_to_tb(tb, {**actor_info, **critic_info, **env_info},n_samples)
+        scalars_to_tb(tb, {**actor_info, **critic_info, **env_info}, n_samples)
         n_samples += env_info.get("duration")
 
         if global_step % config.save_every == 0 and global_step > 0 and config.should_render:

@@ -33,10 +33,10 @@ class CartPole:
         def reward(state, action):
             alive_bonus = 10
             x, x_dot, theta, theta_dot = state
-            pos_penalty = p * (x - 10).sum() ** 2
-            vel_penalty = v * x_dot.sum() ** 2
-            control_penalty = a * action.sum() ** 2
-            diff_bonus = (theta - 0.2) ** 2 * alive_bonus
+            pos_penalty = p * (x - 10).sum()**2
+            vel_penalty = v * x_dot.sum()**2
+            control_penalty = a * action.sum()**2
+            diff_bonus = (theta - 0.2)**2 * alive_bonus
             r = diff_bonus - vel_penalty - control_penalty - pos_penalty
             return r
 
@@ -46,12 +46,9 @@ class CartPole:
             costheta = torch.cos(theta)
             sintheta = torch.sin(theta)
 
-            temp = (
-                           force + self.polemass_length * theta_dot ** 2 * sintheta
-                   ) / self.total_mass
-            thetaacc = (self.gravity * sintheta - costheta * temp) / (
-                    self.length * (4.0 / 3.0 - self.masspole * costheta ** 2 / self.total_mass)
-            )
+            temp = (force + self.polemass_length * theta_dot**2 * sintheta) / self.total_mass
+            thetaacc = (self.gravity * sintheta -
+                        costheta * temp) / (self.length * (4.0 / 3.0 - self.masspole * costheta**2 / self.total_mass))
             xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass
 
             x = x + self.tau * x_dot
@@ -146,12 +143,8 @@ class CartPole:
 
         x, theta = obs[0], obs[2]
 
-        done = bool(
-            x < -self.x_threshold
-            or x > self.x_threshold
-            or theta < -self.theta_threshold_radians
-            or theta > self.theta_threshold_radians
-        )
+        done = bool(x < -self.x_threshold or x > self.x_threshold or theta < -self.theta_threshold_radians
+                    or theta > self.theta_threshold_radians)
         done = done or self.t == self.horizon
         done = torch.tensor(done, dtype=torch.float32)
         self.t += 1

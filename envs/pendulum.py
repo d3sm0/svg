@@ -12,7 +12,7 @@ def angle_normalize(x):
 def _obs_to_th(obs):
     cos_th, sin_th, thdot = obs
     th = torch.atan2(sin_th, cos_th)
-    return th.reshape((1,)), thdot.reshape((1,))
+    return th.reshape((1, )), thdot.reshape((1, ))
 
 
 def _th_to_obs(th, thdot):
@@ -48,8 +48,8 @@ class Pendulum:
 
         def _dynamics(obs, action):
             th, thdot = _obs_to_th(obs)
-            newthdot = (thdot + (-3 * self.g / (2 * self.l) * torch.sin(th + np.pi) + 3.0 / (
-                    self.m * self.l ** 2) * action) * self.dt)
+            newthdot = (thdot + (-3 * self.g / (2 * self.l) * torch.sin(th + np.pi) + 3.0 /
+                                 (self.m * self.l**2) * action) * self.dt)
             newth = th + newthdot * self.dt
             newthdot = torch.clamp(newthdot, -self.max_speed, self.max_speed)
             next_state = _th_to_obs(newth, newthdot)
@@ -57,7 +57,7 @@ class Pendulum:
 
         def _reward(obs, action):
             th, th_dot = _obs_to_th(obs)
-            cost = torch.sum(angle_normalize(th) ** 2 + 0.1 * th_dot ** 2 + 0.001 * (action ** 2))
+            cost = torch.sum(angle_normalize(th)**2 + 0.1 * th_dot**2 + 0.001 * (action**2))
             return -cost
 
         self.dynamics = _dynamics
@@ -112,8 +112,8 @@ class Pendulum:
         # torch.random.manual_seed(seed)
         # pos = torch_dist.Uniform(0., 1.).sample((1,))
         # ang = torch_dist.Uniform(low=-np.pi, high=np.pi).sample((1,))
-        pos = torch.tensor((0.,), dtype=torch.float32)
-        ang = torch.tensor((np.pi / 2,), dtype=torch.float32)
+        pos = torch.tensor((0., ), dtype=torch.float32)
+        ang = torch.tensor((np.pi / 2, ), dtype=torch.float32)
         obs = _th_to_obs(pos, ang)
         _state = torch.cat([pos, ang])
         reward, done, zero = torch.zeros(3)

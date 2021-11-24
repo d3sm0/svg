@@ -28,20 +28,22 @@ def one_step(transition, agent, model):
 
 
 def unroll_trajectory(trajectory, agent, model, gamma):
-    total_return = torch.zeros((1,))
+    total_return = torch.zeros((1, ))
     transition = trajectory[0]
     T = len(trajectory)
     metrics = {}
     for t, real_transition in enumerate(trajectory):
         real_transition = trajectory[t]
-        transition = replace(real_transition, noise=real_transition.noise, done=real_transition.done,
+        transition = replace(real_transition,
+                             noise=real_transition.noise,
+                             done=real_transition.done,
                              next_state=transition.next_state)
         transition = Transition(*list(map(lambda x: x.unsqueeze(0), transition.__dict__.values())))
         transition, metrics = one_step(transition, agent, model)
         # Remember as the policy drift  the action drift and thus the visited state
         # Assume we get the reward upon transition to s1 and not at s1
-        total_return = total_return + (gamma ** t) * transition.reward
-    total_return += gamma ** T * (1 - transition.done) * agent.value(transition.next_state).squeeze()
+        total_return = total_return + (gamma**t) * transition.reward
+    total_return += gamma**T * (1 - transition.done) * agent.value(transition.next_state).squeeze()
     # we do not change the value function here, but we need to backprop throuhg
     # what happen if we replace the value function bootstrapped here with the one from pi^star?
     # this looks like the target of n-step td but off by one factor.
@@ -51,13 +53,13 @@ def unroll_trajectory(trajectory, agent, model, gamma):
 
 def td_loss(policy, s, r, s1, done, gamma):
     td = r + gamma * (1 - done) * policy.value(s1).squeeze() - policy.value(s).squeeze()
-    loss = (0.5 * (td ** 2))
+    loss = (0.5 * (td**2))
     return loss
 
 
-def q_loss(r, q_tm1, q_t,  done, gamma):
+def q_loss(r, q_tm1, q_t, done, gamma):
     td = r + gamma * (1 - done) * q_t.detach() - q_tm1
-    loss = (0.5 * (td ** 2))
+    loss = (0.5 * (td**2))
     return loss
 
 

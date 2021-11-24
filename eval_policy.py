@@ -16,9 +16,7 @@ def generate_episode(env, policy, max_steps=200):
         total_return += r
         env.render()
     env.close()
-    return {
-        "total_return": total_return
-    }
+    return {"total_return": total_return}
 
 
 def eval_policy(env, agent, log_dir, eval_runs=1):
