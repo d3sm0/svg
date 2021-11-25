@@ -45,9 +45,8 @@ def main():
                       disabled=config.DEBUG,
                       wandb_kwargs=dict(entity="ihvg"))
 
-    env = create_gym_env(config.env_id, device=config.device)
-    env = to_torch.JaxToTorchWrapper(env)
-
+    env = create_gym_env(config.env_id)
+    env = to_torch.JaxToTorchWrapper(env, device=config.device)
     agent = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim).to(config.device)
     agent = agents.SVGZero(agent, horizon=config.train_horizon)
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
