@@ -1,6 +1,7 @@
 import torch
 
 from models import polyak_update
+import copy
 from svg import unroll_trajectory, td_loss, one_step, q_loss
 
 
@@ -14,7 +15,7 @@ class SVG:
     def get_action(self, s):
         with torch.no_grad():
             mu, sigma = self.actor.forward(s)
-        eps = torch.randn(size=mu.shape)
+        eps = torch.randn(size=mu.shape).to(mu.device)
         return mu + sigma * eps, eps
 
     @property
@@ -67,6 +68,14 @@ class SVGZero(SVG):
         state_action = torch.cat([state, action], -1)
         return self.agent.critic(state_action)
 
+    def extrapolate(self, batch, gamma, extrapolation_epochs=1):
+        q_k = copy.deepcopy(self.critic.state_dict())
+        extrapolate(self, batch, gamma, extrapolation_epochs)
+        return q_k
+
+    def revert(self, q_k):
+        self.critic.load_state_dict(q_k)
+
     def target_value(self, state, action):
         state_action = torch.cat([state, action], -1)
         return self.agent.target_critic(state_action)
@@ -91,3 +100,13 @@ def has_equal_params(params, target_params):
     for param, target_param in zip(params, target_params):
         equals.append(torch.equal(target_param.data, param.data))
     return any(equals)
+
+
+def extrapolate(agent, batch, gamma, extrapolation_epochs=1):
+    import torch.optim as optim
+    local_opt = optim.SGD(agent.critic.parameters(), lr=1e-2)
+    for _ in range(extrapolation_epochs):
+        local_opt.zero_grad()
+        loss = agent.get_value_loss(batch, gamma)
+        loss.mean().backward()
+        local_opt.step()

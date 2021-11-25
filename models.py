@@ -25,8 +25,8 @@ class Actor(nn.Module):
         self.actor = nn.Sequential(
             nn.Linear(obs_dim, h_dim),
             nn.SELU(),
-            # nn.Linear(h_dim, h_dim), nn.SELU(),
-            # nn.Linear(h_dim, h_dim), nn.SELU(),
+            nn.Linear(h_dim, h_dim), nn.SELU(),
+            nn.Linear(h_dim, h_dim), nn.SELU(),
             nn.Linear(h_dim, 2 * action_dim))
 
     def forward(self, s):
