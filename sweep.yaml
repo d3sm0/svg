@@ -4,10 +4,6 @@ metric:
   name: train/return
   goal: maximize
 parameters:
-  seed:
-    distribution: int_uniform
-    min: 1
-    max: 4
   actor_epochs:
     distribution: int_uniform
     min: 1
