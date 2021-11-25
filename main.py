@@ -33,21 +33,23 @@ def gather_trajectory(env, agent, gamma=0.99):
         t += 1
         if done:
             break
-    return trajectory, {"return": total_return, "duration": t}
+    return trajectory, {"train/return": total_return, "train/duration": t}
 
 
 def main():
     torch.manual_seed(config.seed)
     buddy.register_defaults(config.__dict__)
-    tb = buddy.deploy(proc_num=config.proc_num,
-                      host=config.host,
-                      sweep_yaml=config.sweep_yaml,
-                      disabled=config.DEBUG,
-                      wandb_kwargs=dict(entity="ihvg"))
+    tb = buddy.deploy(
+        proc_num=config.proc_num,
+        host=config.host,
+        sweep_yaml=config.sweep_yaml,
+        disabled=config.DEBUG,
+        wandb_kwargs=dict(entity="ihvg"),
+        extra_modules=["python/3.7", "cuda/11.1/cudnn/8.0"],
+    )
 
-    env = create_gym_env(config.env_id, device=config.device)
-    env = to_torch.JaxToTorchWrapper(env)
-
+    env = create_gym_env(config.env_id)
+    env = to_torch.JaxToTorchWrapper(env, device=config.device)
     agent = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim).to(config.device)
     agent = agents.SVGZero(agent, horizon=config.train_horizon)
     actor_optim = optim.Adam(agent.actor.parameters(), lr=config.policy_lr)
@@ -94,7 +96,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
             print("Found nan in loss")
             break
         scalars_to_tb(tb, {**actor_info, **critic_info, **env_info}, n_samples)
-        n_samples += env_info.get("duration")
+        n_samples += env_info.get("train/duration")
 
         if global_step % config.save_every == 0 and global_step > 0 and config.should_render:
             render_policy(env, agent)
