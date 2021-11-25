@@ -1,7 +1,8 @@
 import torch
 import sys
+import getpass
 
-DEBUG = sys.gettrace() is not None
+DEBUG =  sys.gettrace() is not None
 env_id = "inverted_pendulum"
 
 max_steps = int(1e6)
@@ -14,8 +15,8 @@ save_every = 100
 train_horizon = 5
 grad_clip = 5.
 batch_size = 64
-critic_epochs = 5
-actor_epochs = 5
+critic_epochs = 1
+actor_epochs = 1
 
 regularizer = 1e-4
 seed = 33
@@ -24,11 +25,13 @@ tau = 0.01
 update_target_every = 5
 
 device = torch.device("cpu")
+# if getpass.getuser() != "d3sm0" and torch.cuda.is_available():
+#     device = torch.device("cuda")
 if not DEBUG:
     should_render = False
-    proc_num = 1
     host = "mila"
-    sweep_yaml = ""  # "sweep.yaml"
+    sweep_yaml = "sweep.yaml"
+    proc_num = 5 if len(sweep_yaml) else 1
 else:
     should_render = False
     proc_num = 1
