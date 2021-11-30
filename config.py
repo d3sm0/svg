@@ -1,13 +1,12 @@
 import torch
-import sys
 
-DEBUG = sys.gettrace() is not None
-env_id = "inverted_pendulum"
+DEBUG = True  # sys.gettrace() is not None
+env_id = "halfcheetah"
 
 max_steps = int(1e6)
-policy_lr = 1e-3
+policy_lr = 1e-4
 critic_lr = 1e-3
-horizon = 200
+horizon = 1000
 buffer_size = int(1e5)
 gamma = 0.99
 save_every = 100
@@ -20,15 +19,17 @@ actor_epochs = 5
 regularizer = 1e-4
 seed = 33
 h_dim = 32
-tau = 0.01
-update_target_every = 5
+tau = 0.001
+update_target_every = 1
 
 device = torch.device("cpu")
+# if getpass.getuser() != "d3sm0" and torch.cuda.is_available():
+#     device = torch.device("cuda")
 if not DEBUG:
     should_render = False
-    proc_num = 1
     host = "mila"
-    sweep_yaml = ""  # "sweep.yaml"
+    sweep_yaml = "sweep.yaml"
+    proc_num = 5 if len(sweep_yaml) else 1
 else:
     should_render = False
     proc_num = 1

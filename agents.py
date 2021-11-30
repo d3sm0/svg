@@ -14,7 +14,7 @@ class SVG:
     def get_action(self, s):
         with torch.no_grad():
             mu, sigma = self.actor.forward(s)
-        eps = torch.randn(size=mu.shape)
+        eps = torch.randn(size=mu.shape).to(mu.device)
         return mu + sigma * eps, eps
 
     @property
@@ -84,10 +84,3 @@ class SVGZero(SVG):
 
     def update_target(self, tau=1.):
         polyak_update(self.critic.parameters(), self.target_critic.parameters(), tau)
-
-
-def has_equal_params(params, target_params):
-    equals = []
-    for param, target_param in zip(params, target_params):
-        equals.append(torch.equal(target_param.data, param.data))
-    return any(equals)
