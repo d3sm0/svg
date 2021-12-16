@@ -1,7 +1,7 @@
 import torch
 
 DEBUG = True  # sys.gettrace() is not None
-env_id = "halfcheetah"
+env_id = "inverted_double_pendulum"
 
 max_steps = int(1e6)
 policy_lr = 1e-4
@@ -12,13 +12,13 @@ gamma = 0.99
 save_every = 100
 train_horizon = 5
 grad_clip = 5.
-batch_size = 64
-critic_epochs = 5
-actor_epochs = 5
+batch_size = 256
+critic_epochs = 1
+actor_epochs = 1
 
 regularizer = 1e-4
 seed = 33
-h_dim = 32
+h_dim = 256
 tau = 0.001
 update_target_every = 1
 

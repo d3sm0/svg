@@ -26,6 +26,7 @@ def gather_trajectory(env, agent, gamma=0.99):
     t = 0
     while True:
         action, eps = agent.get_action(state)
+        assert torch.linalg.norm(action) < 1e3
         next_state, reward, done, _ = env.step(action)
         trajectory.append(Transition(state, action, reward, next_state, done, eps))
         state = next_state
@@ -70,7 +71,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
     n_samples = 0
     replay_buffer = Buffer(config.buffer_size)
     rolling_performance = collections.deque(maxlen=20)
-    rolling_performance.append(torch.zeros((1, )))
+    rolling_performance.append(torch.zeros((1,)))
 
     for global_step in itertools.count():
         if n_samples >= config.max_steps:
@@ -84,7 +85,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
                                           batch_size=config.batch_size,
                                           epochs=config.critic_epochs)
         # ascend the gradient on-policy
-        actor_info = svg.optimize_actor(replay_buffer,
+        actor_info = svg.optimize_actor(trajectory,
                                         agent,
                                         env,
                                         actor_optim,
@@ -93,7 +94,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
 
         if global_step % config.update_target_every == 0:
             agent.update_target(config.tau)
-
+        print(global_step, critic_info, actor_info)
         if not torch.isfinite(actor_info.get("actor/grad_norm")) or not torch.isfinite(
                 critic_info.get("critic/grad_norm")):
             print("Found nan in loss", critic_info, actor_info)
@@ -111,7 +112,7 @@ def run(env, agent, actor_optim, critic_optim, tb):
 
         if global_step % config.save_every == 0:
             print(f"Saved at {global_step}. Progress:{n_samples / config.max_steps:.2f}")
-        torch.save(agent.critic, "critic")
+            torch.save(agent, "model.pt")
 
 
 if __name__ == "__main__":

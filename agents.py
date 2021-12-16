@@ -34,7 +34,7 @@ class SVG:
         v_t = self.critic(batch.next_state)
         v_tm1 = self.critic(batch.state)
         loss = td_loss(batch.reward, v_tm1, v_t, batch.done, gamma)
-        return loss
+        return 0.5 * (loss ** 2)
 
     def update_target(self, tau):
         return
@@ -75,7 +75,7 @@ class SVGZero(SVG):
         a_t, _ = self.get_action(batch.next_state)
         q_t = self.target_value(batch.next_state, a_t).squeeze()
         q_tm1 = self.value(batch.state, batch.action).squeeze()
-        return q_loss(batch.reward, q_tm1, q_t, batch.done, gamma)
+        return 0.5 * q_loss(batch.reward, q_tm1, q_t, batch.done, gamma) ** 2
 
     def rsample(self, state):
         mu, std = self.actor(state)
