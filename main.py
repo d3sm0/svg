@@ -8,7 +8,7 @@ import agents
 import config
 import envs.lqg
 from envs.utils import GymWrapper
-from models import ActorValue, Dynamics
+from models import ValueZero
 
 
 @torch.no_grad()
@@ -16,7 +16,7 @@ def gather_trajectory(env, agent):
     state = env.reset()
     trajectory = rlego.Trajectory()
     while True:
-        pi = agent.model.actor(state)
+        pi = agent.model(state)
         action = pi.loc
         eps = (action - pi.loc) / pi.scale
         assert torch.linalg.norm(action) < 1e3
@@ -39,10 +39,11 @@ def main():
     )
 
     env = GymWrapper(envs.lqg.Lqg())
-    model = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim).to(config.device)
+    # model = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim).to(config.device)
+    model = ValueZero(env.observation_space.shape[0], env.action_space.shape[0]).to(config.device)
     # writer.watch(model, log="all", log_freq=10)
-    agent = agents.SVG(model, horizon=config.horizon,
-                       dynamics=Dynamics(env.observation_space.shape[0], env.action_space.shape[0]))
+    # agent = agents.SVG(model, horizon=config.horizon, dynamics=Dynamics(env.observation_space.shape[0], env.action_space.shape[0]))
+    agent = agents.SVG(model, horizon=config.horizon)
     run(env, agent, writer)
 
 
@@ -61,8 +62,8 @@ def run(env, agent, writer):
         # model_info = {}
         # ascend the gradient on-policy
         actor_info = agent.optimize_actor(trajectory, epochs=config.actor_epochs)
-        if global_step % config.update_target_every == 0:
-            agent.update_target(config.tau)
+        # mean if global_step % config.update_target_every == 0:
+        #     agent.update_target(config.tau)
         writer.add_scalars({
             **env_info,
             **actor_info,

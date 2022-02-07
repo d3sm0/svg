@@ -63,25 +63,9 @@ class ValueZero(nn.Module):
         self.actor = Actor(6, action_dim)
         self.dynamics = Dynamics(6, action_dim)
         self.critic = Critic(6)
-        self.q = QFunction(6, action_dim)
 
-    def value(self, state):
-        h = self.body(state)
-        return self.critic(h)
-
-    def q_value(self, state, action):
-        h = self.body(state)
-        return self.q(h, action)
-
-    def policy(self, state):
-        h = self.body(state)
-        pi = self.actor(h)
-        return pi
-
-    def step(self, state, action):
-        h = self.body(state)
-        r, h_tp1 = self.dynamics(h, action)
-        return r, h_tp1
+    def __call__(self, state):
+        return self.actor(self.body(state))
 
 
 class Dynamics(nn.Module):
