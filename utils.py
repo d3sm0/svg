@@ -11,9 +11,9 @@ def l2_norm(parameters):
 
 
 @torch.no_grad()
-def get_grad_norm(parameters):
+def get_grad_norm(model):
     grad_norm = torch.tensor(0.)
-    for p in parameters:
+    for p in model.parameters():
         if p.grad is not None:
             grad_norm += p.grad.norm().cpu()
     return grad_norm

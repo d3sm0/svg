@@ -28,3 +28,12 @@ def eval_policy(env, agent, log_dir, eval_runs=1):
     env.close()
     del env
     return info
+
+
+def render_policy(env, agent):
+    state = env.reset(0)
+    while not state.done:
+        action, _ = agent.get_action(state)
+        state, _ = env.step(action)
+        # env.render(state.obs)
+    env.close()
