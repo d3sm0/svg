@@ -1,5 +1,6 @@
-import torch
 import sys
+
+import torch
 
 DEBUG = sys.gettrace() is not None
 env_id = "inverted_pendulum"
@@ -11,7 +12,8 @@ sweep_yaml = ""  # k"sweep.yaml"
 max_steps = int(1e6)
 policy_lr = 0.001
 critic_lr = 0.005
-horizon = 200
+model_lr = 0.005
+horizon = 1
 buffer_size = int(1e5)
 gamma = 0.99
 save_every = 100

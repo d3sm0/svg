@@ -8,7 +8,7 @@ import agents
 import config
 import envs.lqg
 from envs.utils import GymWrapper
-from models import ActorValue
+from models import ActorValue, Dynamics
 
 
 @torch.no_grad()
@@ -17,7 +17,7 @@ def gather_trajectory(env, agent):
     trajectory = rlego.Trajectory()
     while True:
         pi = agent.model.actor(state)
-        action = pi.rsample()
+        action = pi.loc
         eps = (action - pi.loc) / pi.scale
         assert torch.linalg.norm(action) < 1e3
         next_state, reward, done, info = env.step(action)
@@ -40,8 +40,9 @@ def main():
 
     env = GymWrapper(envs.lqg.Lqg())
     model = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim).to(config.device)
-    writer.watch(model, log="all", log_freq=10)
-    agent = agents.SVGZero(model)
+    # writer.watch(model, log="all", log_freq=10)
+    agent = agents.SVG(model, horizon=config.horizon,
+                       dynamics=Dynamics(env.observation_space.shape[0], env.action_space.shape[0]))
     run(env, agent, writer)
 
 
@@ -55,20 +56,19 @@ def run(env, agent, writer):
 
         critic_info = agent.optimize_critic(trajectory,
                                             epochs=config.critic_epochs)
+
+        model_info = agent.optimize_model(trajectory, epochs=config.critic_epochs)
+        # model_info = {}
         # ascend the gradient on-policy
-        actor_info = agent.optimize_actor(trajectory,
-                                          epochs=config.actor_epochs)
+        actor_info = agent.optimize_actor(trajectory, epochs=config.actor_epochs)
         if global_step % config.update_target_every == 0:
             agent.update_target(config.tau)
         writer.add_scalars({
             **env_info,
             **actor_info,
-            **critic_info
+            **critic_info,
+            **model_info
         }, global_step=global_step)
-
-
-        # w = agent.model.critic.q[0].weight.T
-        # w_mu = agent.model.actor.pi.linear[0].weight.T[:, :1]
 
         # if not torch.isfinite(actor_info.get("actor/grad_norm")) or not torch.isfinite(critic_info.get("critic/grad_norm")):
         #     print("Found nan in loss", critic_info, actor_info)
