@@ -172,16 +172,6 @@ class SVG:
                                           replay_buffer, epochs, prefix="model")
         return value_info
 
-    def _unroll_real(self, state, horizon):
-        s_t = state
-        transitions = []
-        for t in range(horizon):
-            pi = self.model.actor(s_t)
-            a_t = pi.mean
-            s_tp1, r_t = self.env(s_t, a_t)
-            transitions.append((s_t, a_t, r_t, s_tp1))
-        return transitions, pi
-
     def _unroll(self, state, horizon):
         s_t = state
         transitions = []

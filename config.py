@@ -5,7 +5,7 @@ import torch
 DEBUG = sys.gettrace() is not None
 env_id = "lqr"
 should_render = False
-proc_num = 1
+proc_num = 5
 host = "mila"
 sweep_yaml = "sweep.yaml"
 
