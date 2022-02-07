@@ -94,12 +94,12 @@ class SVG:
         state = batch.state
         h = self.model.body(state)
         with torch.no_grad():
-            # is this on the real next_state?
             v_t = self.model.critic(self.model.body(batch.next_state)).squeeze()
         v_tm1 = self.model.critic(h).squeeze()
         discount_t = (1 - batch.done) * self.gamma
         r_t = batch.reward
-        vtrace_target = rlego.vtrace_td_error_and_advantage(v_tm1.detach(), v_t, r_t, discount_t, rho_tm1=torch.ones_like(discount_t))
+        vtrace_target = rlego.vtrace_td_error_and_advantage(v_tm1.detach(), v_t, r_t, discount_t,
+                                                            rho_tm1=torch.ones_like(discount_t))
         td_loss = (vtrace_target.target_tm1 - v_tm1) * (1 - config.gamma)
         loss = 0.5 * td_loss.pow(2)
         return loss.mean(), {"critic/td": td_loss.mean().detach()}
@@ -123,7 +123,7 @@ class SVG:
         # assume determintic action for the bootrap
 
         h = self.model.body(batch.state)
-        transitions, pi = self._unroll(h, horizon=5)
+        transitions, pi = self._unroll(h, horizon=config.plan_horizon)
 
         rewards = [t[2] for t in transitions]
         s_tp1 = [t[3] for t in transitions]
@@ -139,28 +139,27 @@ class SVG:
                                       }
 
     def _optimize_model(self, batch):
-
-        h = self.model.body(batch.state)
-        transitions, pi = self._unroll(h, horizon=1)
-
-        rewards = [t[2] for t in transitions]
-        s_tp1 = [t[3] for t in transitions]
-        s_t = [t[0] for t in transitions]
-        s_t = torch.stack(s_t)
-        rewards = torch.stack(rewards, dim=1)
-        # note terminal bias
-
-        discount_t = torch.ones_like(rewards) * config.gamma
-        v_t = self.model.critic(s_tp1[-1]).squeeze(dim=-1).detach()
-
-        target = vmap(rlego.discounted_returns)(rewards, discount_t, v_t)
-
-        v_tm1 = self.model.critic(s_t)
-        reward_loss = (rewards - batch.reward).pow(2).mean()
-        value_loss = 0.5 * (target - v_tm1).pow(2).mean()
-
-        total_loss = (value_loss + reward_loss)
-
+        horizon = config.plan_horizon
+        batch_size = config.batch_size
+        batch_idx = torch.randint(0, len(batch.state) - horizon, size=(batch_size,))
+        train_slice = []
+        for idx in batch_idx:
+            state_slice = batch.state[idx:idx + horizon]
+            reward_slice = batch.reward[idx:idx + horizon]
+            v_t = self.model.critic(self.model.body(batch.state[idx + horizon])).detach()
+            target = rlego.discounted_returns(reward_slice, discount_t=torch.ones_like(reward_slice) * config.gamma,
+                                              v_t=v_t) * (1 - config.gamma)
+            train_slice.append((state_slice, reward_slice, target))
+        total_loss = torch.tensor(0.)
+        for (states, rewards, target) in train_slice:
+            h = self.model.body(states[:1])
+            transitions, pi = self._unroll(h, horizon=len(states))
+            r_hat = torch.cat([t[2] for t in transitions])
+            v_tm1 = torch.cat([t[-1] for t in transitions])
+            reward_loss = (rewards - r_hat).pow(2).sum()
+            value_loss = 0.5 * (target - v_tm1.squeeze(dim=-1)).pow(2).sum()
+            total_loss = total_loss + (reward_loss + value_loss)
+        total_loss = total_loss / batch_size
         return total_loss, {
             "model/model_loss": value_loss.detach(),
             # "model/actions": torch.linalg.norm(a_t[0]),
@@ -189,6 +188,7 @@ class SVG:
         for t in range(horizon):
             pi = self.model.actor(s_t)
             a_t = pi.rsample()
+            v_t = self.model.critic(s_t)
             s_tp1, r_t = self.model.dynamics(s_t, a_t)
-            transitions.append((s_t, a_t, r_t, s_tp1))
+            transitions.append((s_t, a_t, r_t, s_tp1, v_t))
         return transitions, pi
