@@ -11,15 +11,14 @@ from envs.utils import GymWrapper
 from models import ValueZero
 
 
-@torch.no_grad()
 def gather_trajectory(env, agent):
     state = env.reset()
     trajectory = rlego.Trajectory()
     while True:
-        # pi = agent.plan(state)
-        # action = pi.loc
-        pi = agent.model(state)
-        action = pi.loc
+        pi = agent.plan(state)
+        action = pi.rsample()
+        # pi = agent.model(state)
+        # action = pi.sample()
         assert torch.linalg.norm(action) < 1e3
         next_state, reward, done, info = env.step(action)
         trajectory.append(
@@ -60,7 +59,7 @@ def run(env, agent, writer):
         #                                             epochs=config.critic_epochs)
         #
         model_info = agent.optimize_model(trajectory, epochs=config.critic_epochs)
-        # agent.update_target(config.tau)
+        agent.update_target(config.tau)
         # model_info = {}
         # ascend the gradient on-policy
         # actor_info = agent.optimize_actor(trajectory, epochs=config.actor_epochs)
