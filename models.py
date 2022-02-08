@@ -59,8 +59,10 @@ class ActorValue(nn.Module):
 class ValueZero(nn.Module):
     def __init__(self, obs_dim, action_dim):
         super(ValueZero, self).__init__()
-        self.body = nn.Sequential(nn.Linear(obs_dim, 6))
+        self.body = nn.Sequential(nn.Linear(obs_dim, 6), nn.SiLU(), nn.Linear(6, 6), nn.SiLU())
         self.actor = Actor(6, action_dim)
+        self.planner = Actor(6, action_dim)
+        self.planner.load_state_dict(self.actor.state_dict())
         self.dynamics = Dynamics(6, action_dim)
         self.critic = Critic(6)
 

@@ -65,11 +65,11 @@ def optimize_from_buffer(model, loss_fn, optim, repay_buffer, epochs=1, prefix="
     for _ in range(epochs):
         transition = repay_buffer.transpose()
         optim.zero_grad()
-        grad_norm = utils.get_grad_norm(model)
         loss, extra = loss_fn(transition)
-        assert torch.isfinite(loss)
+        if not torch.isfinite(loss):
+            raise ValueError("Loss is not finite.")
         loss.backward()
-        # torch.nn.utils.clip_grad_norm_(model, 1.)
+        # torch.nn.utils.clip_grad_value_(model.parameters(), 5.)
         grad_norm = utils.get_grad_norm(model)
         optim.step()
     # optim.zero_grad()
@@ -88,7 +88,35 @@ class SVG:
         self.env = DynamicsLQR(Lqg())
         self.horizon = horizon
         self.gamma = gamma
-        self.optim = torch.optim.SGD(self.model.parameters(), lr=config.model_lr)
+        self.optim = torch.optim.SGD(
+            [
+                {"params": self.model.actor.parameters()},
+                {"params": self.model.body.parameters()},
+                {"params": self.model.dynamics.parameters()},
+                {"params": self.model.critic.parameters()}
+            ],
+            lr=config.model_lr)
+        self.planner_optim = torch.optim.SGD([{"params": self.model.planner.parameters()}], lr=config.policy_lr)
+
+
+    def plan(self, state):
+        h = self.model.body(state)
+        transitions, pi = self._unroll(h, horizon=1, actor=self.model.planner)
+
+        rewards = [t[2] for t in transitions]
+        s_tp1 = [t[3] for t in transitions]
+        rewards = torch.stack(rewards)
+
+        discount_t = torch.ones_like(rewards) * config.gamma
+        v_t = self.model.critic(s_tp1[-1]).squeeze(dim=-1)
+        value = rlego.discounted_returns(rewards, discount_t, v_t) * (1 - config.gamma)
+        self.planner_optim.zero_grad()
+        (-value.sum()).backward()
+        self.optim.zero_grad()
+        self.planner_optim.step()
+        with torch.no_grad():
+            pi = self.model.planner(h)
+        return pi
 
     def _optimize_critic(self, batch):
         state = batch.state
@@ -114,6 +142,11 @@ class SVG:
                                           prefix="critic")
         return value_info
 
+    def optimize_model(self, replay_buffer, epochs=1):
+        value_info = optimize_from_buffer(self.model, self._optimize_model, self.optim,
+                                          replay_buffer, epochs, prefix="model")
+        return value_info
+
     def _optimize_actor(self, batch):
         # Remember as the policy drift  the action drift and thus the visited state
         # Assume we get the reward upon transition to s1 and not at s1
@@ -123,7 +156,7 @@ class SVG:
         # assume determintic action for the bootrap
 
         h = self.model.body(batch.state)
-        transitions, pi = self._unroll(h, horizon=config.plan_horizon)
+        transitions, pi = self._unroll(h, horizon=2, actor=self.model.planner)
 
         rewards = [t[2] for t in transitions]
         s_tp1 = [t[3] for t in transitions]
@@ -132,11 +165,13 @@ class SVG:
         discount_t = torch.ones_like(rewards) * config.gamma
         v_t = self.model.critic(s_tp1[-1]).squeeze(dim=-1).detach()
         value = vmap(rlego.discounted_returns)(rewards, discount_t, v_t)
-        return -value.sum(1).mean(), {"actor/value": value.mean().detach(),
-                                      "actor/loc": pi.mean.mean(),
-                                      # "actor/reg": reg.mean(),
-                                      "actor/scale": pi.variance.mean()
-                                      }
+
+        v = value.sum(1).mean()
+        return -v, {"actor/value": value.mean().detach(),
+                    "actor/loc": pi.mean.mean(),
+                    # "actor/reg": reg.mean(),
+                    "actor/scale": pi.variance.mean()
+                    }
 
     def _optimize_model(self, batch):
         horizon = config.plan_horizon
@@ -146,49 +181,59 @@ class SVG:
         for idx in batch_idx:
             state_slice = batch.state[idx:idx + horizon]
             reward_slice = batch.reward[idx:idx + horizon]
+            loc, scale = torch.split(torch.stack(batch.info[idx:idx + horizon]), dim=-1, split_size_or_sections=1)
+            pi_env = torch.distributions.Normal(loc, scale * config.gamma)
             v_t = self.model.critic(self.model.body(batch.state[idx + horizon])).detach()
-            target = rlego.discounted_returns(reward_slice, discount_t=torch.ones_like(reward_slice) * config.gamma,
-                                              v_t=v_t) * (1 - config.gamma)
-            train_slice.append((state_slice, reward_slice, target))
+            target = rlego.discounted_returns(reward_slice, discount_t=torch.ones_like(reward_slice) * config.gamma, v_t=v_t) * (1 - config.gamma)
+            train_slice.append((state_slice, reward_slice, target, pi_env))
+
         total_loss = torch.tensor(0.)
-        for (states, rewards, target) in train_slice:
+        for (states, rewards, v_t, pi_env) in train_slice:
             h = self.model.body(states[:1])
-            transitions, pi = self._unroll(h, horizon=len(states))
+            transitions, pi = self._unroll(h, horizon=len(states), actor=self.model.actor)
             r_hat = torch.cat([t[2] for t in transitions])
             v_tm1 = torch.cat([t[-1] for t in transitions])
+            # a_tm1 = torch.cat([t[1] for t in transitions])
+
+            # discount_t = torch.ones_like(r_hat) * config.gamma
+            # v_t = self.model.critic(transitions[-1][0]).squeeze(dim=-1).detach()
+            # value = rlego.discounted_returns(r_hat, discount_t, v_t).sum()
+
+            pi_true = torch.stack([t[-2] for t in transitions]).squeeze(dim=-1)
+            pi_true = torch.distributions.Normal(*torch.split(pi_true, split_size_or_sections=1, dim=-1))
+            pi_loss = torch.distributions.kl_divergence(pi_true, pi_env).sum(dim=-1).sum()
+            # discount_t = torch.ones_like(r_hat) * config.gamma
+            # rho_tm1 = torch.exp(pi.log_prob(a_tm1) - pi_env.log_prob(a_tm1)).sum(dim=-1).exp().detach()
+            # rho_tm1 = torch.ones_like(rho_tm1)
+            # v_trace_output = rlego.vtrace_td_error_and_advantage(v_tm1.squeeze(dim=-1), v_t, rewards, discount_t, rho_tm1)
+            # target = rlego.discounted_returns(rewards, discount_t=torch.ones_like(rewards) * config.gamma, v_t=v_t) * ( 1 - config.gamma)
             reward_loss = (rewards - r_hat).pow(2).sum()
-            value_loss = 0.5 * (target - v_tm1.squeeze(dim=-1)).pow(2).sum()
-            total_loss = total_loss + (reward_loss + value_loss)
+            value_loss = 0.5 * (v_t - v_tm1.squeeze(dim=-1)).pow(2).sum()
+            # total_loss = total_loss + (reward_loss + 0 * value_loss + 0 * pi_loss)
+            total_loss = total_loss + (value_loss + reward_loss + pi_loss)
         total_loss = total_loss / batch_size
         return total_loss, {
             "model/model_loss": value_loss.detach(),
+            "model/pi": pi_loss.detach(),
+            # "actor/value": value,
+            "actor/loc": pi.mean.mean(),
+            "actor/scale": pi.variance.mean(),
             # "model/actions": torch.linalg.norm(a_t[0]),
             # "model/states": torch.linalg.norm(s_tp1[0]),
             "model/reward_loss": reward_loss.detach(),
         }
 
-    def optimize_model(self, replay_buffer, epochs=1):
-        value_info = optimize_from_buffer(self.model, self._optimize_model, self.optim,
-                                          replay_buffer, epochs, prefix="model")
-        return value_info
-
-    def _unroll_real(self, state, horizon):
+    def _unroll(self, state, horizon, actor):
         s_t = state
         transitions = []
         for t in range(horizon):
-            pi = self.model.actor(s_t)
-            a_t = pi.mean
-            s_tp1, r_t = self.env(s_t, a_t)
-            transitions.append((s_t, a_t, r_t, s_tp1))
-        return transitions, pi
-
-    def _unroll(self, state, horizon):
-        s_t = state
-        transitions = []
-        for t in range(horizon):
-            pi = self.model.actor(s_t)
+            pi = actor(s_t)
             a_t = pi.rsample()
             v_t = self.model.critic(s_t)
             s_tp1, r_t = self.model.dynamics(s_t, a_t)
-            transitions.append((s_t, a_t, r_t, s_tp1, v_t))
+            transitions.append((s_t, a_t, r_t, s_tp1, torch.cat([pi.loc, pi.scale]), v_t))
+            s_t = s_tp1
         return transitions, pi
+
+    def update_target(self, tau=1.):
+        rlego.polyak_update(self.model.actor.parameters(), self.model.planner.parameters(), tau)

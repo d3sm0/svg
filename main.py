@@ -16,12 +16,14 @@ def gather_trajectory(env, agent):
     state = env.reset()
     trajectory = rlego.Trajectory()
     while True:
+        # pi = agent.plan(state)
+        # action = pi.loc
         pi = agent.model(state)
-        action = pi.rsample()
-        eps = (action - pi.loc) / pi.scale
+        action = pi.loc
         assert torch.linalg.norm(action) < 1e3
         next_state, reward, done, info = env.step(action)
-        trajectory.append(rlego.Transition(state, action, reward, next_state, done, eps))
+        trajectory.append(
+            rlego.Transition(state, action, reward, next_state, done, torch.cat([pi.loc, pi.scale], dim=-1)))
         state = next_state
         if done:
             break
@@ -49,24 +51,23 @@ def main():
 
 
 def run(env, agent, writer):
-    n_samples = 0
-
     for global_step in itertools.count():
-        if n_samples >= config.max_steps:
+        if global_step >= config.max_steps:
             break
         trajectory, env_info = gather_trajectory(env, agent)
 
-        critic_info = agent.optimize_critic(trajectory,
-                                            epochs=config.critic_epochs)
-
+        #         critic_info = agent.optimize_critic(trajectory,
+        #                                             epochs=config.critic_epochs)
+        #
         model_info = agent.optimize_model(trajectory, epochs=config.critic_epochs)
+        # agent.update_target(config.tau)
         # model_info = {}
         # ascend the gradient on-policy
-        actor_info = agent.optimize_actor(trajectory, epochs=config.actor_epochs)
+        # actor_info = agent.optimize_actor(trajectory, epochs=config.actor_epochs)
         writer.add_scalars({
             **env_info,
-            **actor_info,
-            **critic_info,
+            # **actor_info,
+            # **critic_info,
             **model_info
         }, global_step=global_step)
 

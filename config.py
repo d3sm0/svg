@@ -6,10 +6,10 @@ DEBUG = sys.gettrace() is not None
 env_id = "lqr"
 should_render = False
 proc_num = 1
-host = "mila"
-sweep_yaml = "sweep.yaml"
+host = ""  # "mila"
+sweep_yaml = ""  # "sweep.yaml"
 
-max_steps = int(1e6)
+max_steps = int(5e3)
 policy_lr = 0.001
 critic_lr = 0.005
 model_lr = 0.005
