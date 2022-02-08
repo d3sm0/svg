@@ -19,7 +19,7 @@ def gather_trajectory(env, agent):
         # pi = agent.plan(state)
         # action = pi.loc
         pi = agent.model(state)
-        action = pi.loc
+        action = pi.sample()
         assert torch.linalg.norm(action) < 1e3
         next_state, reward, done, info = env.step(action)
         trajectory.append(

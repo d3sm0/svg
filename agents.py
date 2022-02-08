@@ -152,14 +152,12 @@ class SVG:
             v_trace_output = rlego.vtrace_td_error_and_advantage(v_tm1.squeeze(dim=-1), v_t, rewards, discount_t,
                                                                  rho_tm1)
 
-            consistency = (r_hat.cumsum(0) - rewards.cumsum(0)).sum()
-
             target = v_trace_output.target_tm1 * (1 - config.gamma)
             q_target = v_trace_output.q_estimate * (1 - config.gamma)
             reward_loss = (rewards.detach() - r_hat).pow(2).sum()
             value_loss = 0.5 * (target.detach() - v_tm1).pow(2).sum()
             q_loss = 0.5 * (q_target.detach() - q_tm1).pow(2).sum()
-            total_loss = total_loss + (value_loss + reward_loss + pi_loss + q_loss + consistency)
+            total_loss = total_loss + (value_loss + reward_loss + pi_loss + q_loss )
         total_loss = total_loss / batch_size
         return total_loss, {
             "model/model_loss": value_loss.detach(),
