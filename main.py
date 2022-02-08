@@ -16,7 +16,7 @@ def gather_trajectory(env, agent):
     trajectory = rlego.Trajectory()
     while True:
         pi = agent.plan(state)
-        action = pi.rsample()
+        action = pi.loc
         # pi = agent.model(state)
         # action = pi.sample()
         assert torch.linalg.norm(action) < 1e3
