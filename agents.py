@@ -149,15 +149,15 @@ class SVG:
             pi_loss = torch.distributions.kl_divergence(pi_true, pi_env).sum(dim=-1).sum()
             discount_t = torch.ones_like(r_hat) * config.gamma
             rho_tm1 = torch.exp(pi.log_prob(a_tm1) - pi_env.log_prob(a_tm1)).sum(dim=-1).exp().detach()
-            v_trace_output = rlego.vtrace_td_error_and_advantage(v_tm1.squeeze(dim=-1), v_t, rewards, discount_t,
-                                                                 rho_tm1)
-
+            rho_tm1 = torch.ones_like(rho_tm1)
+            v_trace_output = rlego.vtrace_td_error_and_advantage(v_tm1.squeeze(dim=-1), v_t, rewards, discount_t, rho_tm1)
+            wasserstain_distance = w_gaussian(pi_true, pi_env)
             target = v_trace_output.target_tm1 * (1 - config.gamma)
             q_target = v_trace_output.q_estimate * (1 - config.gamma)
             reward_loss = (rewards.detach() - r_hat).pow(2).sum()
             value_loss = 0.5 * (target.detach() - v_tm1).pow(2).sum()
             q_loss = 0.5 * (q_target.detach() - q_tm1).pow(2).sum()
-            total_loss = total_loss + (value_loss + reward_loss + pi_loss + q_loss )
+            total_loss = total_loss + (value_loss + reward_loss + pi_loss + q_loss)
         total_loss = total_loss / batch_size
         return total_loss, {
             "model/model_loss": value_loss.detach(),
@@ -166,6 +166,7 @@ class SVG:
             "actor/rho": rho_tm1.mean(),
             "actor/loc": pi.mean.mean(),
             "actor/scale": pi.variance.mean(),
+            "actor/wasserstain": wasserstain_distance.mean(),
             # "model/actions": torch.linalg.norm(a_t[0]),
             # "model/states": torch.linalg.norm(s_tp1[0]),
             "model/reward_loss": reward_loss.detach(),
@@ -186,3 +187,9 @@ class SVG:
 
     def update_target(self, tau=1.):
         rlego.polyak_update(self.model.actor.parameters(), self.model.planner.parameters(), tau)
+
+
+def w_gaussian(pi, pi_k):
+    # TODO something is wrong with univariate
+    loss = (pi.loc - pi_k.loc).pow(2) - (pi.variance + pi_k.variance - 2 * (pi.variance * pi_k.variance).sqrt()).clamp_min(0)
+    return loss.sum(dim=-1).mean()
