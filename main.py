@@ -15,10 +15,12 @@ def gather_trajectory(env, agent):
     state = env.reset()
     trajectory = rlego.Trajectory()
     while True:
-        pi = agent.plan(state)
-        action = pi.rsample()
-        # pi = agent.model(state)
-        # action = pi.sample()
+        pi, plan_info = agent.plan(state)
+        action = pi.loc
+        # with torch.no_grad():
+        #     pi = agent.model(state)
+        #     action = pi.loc
+        #     plan_info = {}
         assert torch.linalg.norm(action) < 1e3
         next_state, reward, done, info = env.step(action)
         trajectory.append(
@@ -26,7 +28,7 @@ def gather_trajectory(env, agent):
         state = next_state
         if done:
             break
-    return trajectory, info
+    return trajectory, {**info, **plan_info}
 
 
 def main():
