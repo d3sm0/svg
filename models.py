@@ -65,6 +65,7 @@ class ValueZero(nn.Module):
         self.planner.load_state_dict(self.actor.state_dict())
         self.dynamics = Dynamics(6, action_dim)
         self.critic = Critic(6)
+        self.q = QFunction(6, action_dim)
 
     def __call__(self, state):
         return self.actor(self.body(state))
