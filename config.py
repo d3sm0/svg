@@ -5,9 +5,9 @@ import torch
 DEBUG = sys.gettrace() is not None
 env_id = "lqr"
 should_render = False
-proc_num = 5
-host = "mila"
-sweep_yaml = "sweep.yaml"
+proc_num = 1
+host = ""
+sweep_yaml = ""  # "sweep.yaml"
 
 max_steps = int(5e3)
 policy_lr = 0.005
