@@ -67,7 +67,8 @@ def optimize_from_buffer(model, loss_fn, optim, repay_buffer, epochs=1, prefix="
         optim.zero_grad()
         grad_norm = utils.get_grad_norm(model)
         loss, extra = loss_fn(transition)
-        assert torch.isfinite(loss)
+        if not torch.isfinite(loss):
+            raise ValueError("Loss is not finite.")
         loss.backward()
         # torch.nn.utils.clip_grad_norm_(model, 1.)
         grad_norm = utils.get_grad_norm(model)
@@ -171,16 +172,6 @@ class SVG:
         value_info = optimize_from_buffer(self.model, self._optimize_model, self.optim,
                                           replay_buffer, epochs, prefix="model")
         return value_info
-
-    def _unroll_real(self, state, horizon):
-        s_t = state
-        transitions = []
-        for t in range(horizon):
-            pi = self.model.actor(s_t)
-            a_t = pi.mean
-            s_tp1, r_t = self.env(s_t, a_t)
-            transitions.append((s_t, a_t, r_t, s_tp1))
-        return transitions, pi
 
     def _unroll(self, state, horizon):
         s_t = state

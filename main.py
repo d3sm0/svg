@@ -49,10 +49,8 @@ def main():
 
 
 def run(env, agent, writer):
-    n_samples = 0
-
     for global_step in itertools.count():
-        if n_samples >= config.max_steps:
+        if global_step >= config.max_steps:
             break
         trajectory, env_info = gather_trajectory(env, agent)
 
