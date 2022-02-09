@@ -5,7 +5,7 @@ import torch
 DEBUG = sys.gettrace() is not None
 env_id = "Pendulum-v1"
 should_render = False
-deploy = False
+deploy = True
 if deploy is True and not DEBUG:
     proc_num = 5
     host = "mila"
