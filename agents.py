@@ -142,7 +142,7 @@ class SVG:
             reward_slice = batch.reward[idx:idx + horizon]
             loc, scale = torch.split(torch.stack(batch.info[idx:idx + horizon]), dim=-1, split_size_or_sections=1)
             # TODO this is hack to decrease the variance
-            pi_env = torch.distributions.Normal(loc, scale * config.gamma)
+            pi_env = torch.distributions.Normal(loc, scale)
             v_t = self.model.critic(self.model.body(batch.state[idx + horizon])).detach()
             train_slice.append((state_slice, reward_slice, v_t, pi_env))
 
