@@ -7,7 +7,8 @@ from torch._vmap_internals import vmap
 class Actor(nn.Module):
     def __init__(self, obs_dim, action_dim, h_dim=100):
         super().__init__()
-        self.pi = nn.Sequential(nn.Linear(obs_dim, obs_dim), nn.SiLU(), rlego.GaussianPolicy(obs_dim, action_dim))
+        self.pi = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.SiLU(), nn.Linear(h_dim, h_dim), nn.SiLU(),
+                                rlego.GaussianPolicy(h_dim, action_dim))
 
     def forward(self, s):
         out = self.pi(s)
@@ -17,7 +18,8 @@ class Actor(nn.Module):
 class Critic(nn.Module):
     def __init__(self, obs_dim, h_dim=100):
         super().__init__()
-        self.critic = nn.Sequential(nn.Linear(obs_dim, 6), nn.SiLU(), nn.Linear(6, 6), nn.SiLU(), nn.Linear(6, 1))
+        self.critic = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.SiLU(), nn.Linear(h_dim, h_dim), nn.SiLU(),
+                                    nn.Linear(h_dim, 1))
 
     def forward(self, state):
         return self.critic(state)
@@ -26,8 +28,8 @@ class Critic(nn.Module):
 class QFunction(nn.Module):
     def __init__(self, obs_dim, action_dim, h_dim=100):
         super().__init__()
-        self.q = nn.Sequential(nn.Linear(obs_dim + action_dim, 6), nn.SiLU(), nn.Linear(6, 6), nn.SiLU(),
-                               nn.Linear(6, 1))
+        self.q = nn.Sequential(nn.Linear(obs_dim + action_dim, h_dim), nn.SiLU(), nn.Linear(h_dim, h_dim), nn.SiLU(),
+                               nn.Linear(h_dim, 1))
         # self._critic = nn.Sequential(nn.Linear(obs_dim, ))
         # self._add_action = nn.Sequential(nn.Linear(h_dim + action_dim, h_dim), nn.ReLU())
         # self._out = nn.Linear(h_dim, 1)
@@ -58,27 +60,29 @@ class ActorValue(nn.Module):
 
 
 class ValueZero(nn.Module):
-    def __init__(self, obs_dim, action_dim):
+    def __init__(self, obs_dim, action_dim, h_dim):
         super(ValueZero, self).__init__()
-        self.body = nn.Sequential(nn.Linear(obs_dim, 6), nn.SiLU(), nn.Linear(6, 6), nn.SiLU())
-        self.actor = Actor(6, action_dim)
-        self.planner = Actor(6, action_dim)
+        self.body = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.SiLU(), nn.Linear(h_dim, h_dim), nn.SiLU())
+        self.actor = Actor(h_dim, action_dim)
+        self.planner = Actor(h_dim, action_dim)
         self.planner.load_state_dict(self.actor.state_dict())
-        self.dynamics = Dynamics(6, action_dim)
-        self.critic = Critic(6)
-        self.q = QFunction(6, action_dim)
+        self.dynamics = Dynamics(h_dim, action_dim, h_dim)
+        self.critic = Critic(h_dim)
+        self.q = QFunction(h_dim, action_dim)
 
     def __call__(self, state):
         return self.actor(self.body(state))
 
 
 class Dynamics(nn.Module):
-    def __init__(self, obs_dim, action_dim):
+    def __init__(self, obs_dim, action_dim, h_dim):
         super(Dynamics, self).__init__()
-        self.dynamics = nn.Sequential(nn.Linear(obs_dim + action_dim, 6), nn.SiLU(), nn.Linear(6, 6), nn.SiLU(),
-                                      nn.Linear(6, obs_dim))
-        self.reward = nn.Sequential(nn.Linear(obs_dim + action_dim + obs_dim, 6), nn.SiLU(), nn.Linear(6, 6), nn.SiLU(),
-                                    nn.Linear(6, 1))
+        self.dynamics = nn.Sequential(nn.Linear(obs_dim + action_dim, h_dim), nn.SiLU(), nn.Linear(h_dim, h_dim),
+                                      nn.SiLU(),
+                                      nn.Linear(h_dim, obs_dim))
+        self.reward = nn.Sequential(nn.Linear(obs_dim + action_dim + obs_dim, h_dim), nn.SiLU(),
+                                    nn.Linear(h_dim, h_dim), nn.SiLU(),
+                                    nn.Linear(h_dim, 1))
 
     def __call__(self, state, action):
         sa = torch.cat([state, action], dim=-1)

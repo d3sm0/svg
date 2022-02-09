@@ -1,13 +1,14 @@
 import itertools
 
 import experiment_buddy as buddy
+import gym
 import rlego
 import torch
 
 import agents
 import config
 import envs.lqg
-from envs.utils import GymWrapper
+from envs.utils import GymWrapper, TorchWrapper
 from models import ValueZero
 
 
@@ -42,9 +43,9 @@ def main():
         extra_modules=["python/3.7", "cuda/11.1/cudnn/8.0"],
     )
 
-    env = GymWrapper(envs.lqg.Lqg())
+    env = TorchWrapper(gym.make(config.env_id))
     # model = ActorValue(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim).to(config.device)
-    model = ValueZero(env.observation_space.shape[0], env.action_space.shape[0]).to(config.device)
+    model = ValueZero(env.observation_space.shape[0], env.action_space.shape[0], h_dim=config.h_dim).to(config.device)
     # writer.watch(model, log="all", log_freq=10)
     # agent = agents.SVG(model, horizon=config.horizon, dynamics=Dynamics(env.observation_space.shape[0], env.action_space.shape[0]))
     agent = agents.SVG(model)

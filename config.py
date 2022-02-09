@@ -3,10 +3,10 @@ import sys
 import torch
 
 DEBUG = sys.gettrace() is not None
-env_id = "lqr"
+env_id = "Pendulum-v1"
 should_render = False
 deploy = False
-if deploy == True and not DEBUG:
+if deploy is True and not DEBUG:
     proc_num = 5
     host = "mila"
     sweep_yaml = "sweep.yaml"
@@ -16,7 +16,7 @@ else:
     sweep_yaml = ""
 
 max_steps = int(5e3)
-policy_lr = 0.008
+policy_lr = 0.0001
 critic_lr = 0.005
 model_lr = 0.005
 buffer_size = int(1e5)
@@ -30,7 +30,7 @@ critic_epochs = 1
 actor_epochs = 1
 
 seed = 33
-h_dim = 64
+h_dim = 32
 # DDPG
 tau = 0.1
 update_target_every = 1
