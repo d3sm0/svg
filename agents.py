@@ -158,28 +158,31 @@ class SVG:
             q_tm1 = torch.cat([t[-1] for t in transitions]).squeeze(dim=-1)
             a_tm1 = torch.cat([t[1] for t in transitions])
             s_t = torch.cat([t[0] for t in transitions])
+            rewards = (rewards - rewards.min()) / (rewards.max() - rewards.min())
             # with torch.no_grad():
             #     pi_env = self.model.planner(s_t)
             pi_true = torch.stack([t[-3] for t in transitions]).squeeze(dim=1)
             pi_true = torch.distributions.Normal(*torch.split(pi_true, split_size_or_sections=1, dim=-1))
-            pi_loss = torch.distributions.kl_divergence(pi_true, pi_env).sum(dim=-1).sum()
+            kl = torch.distributions.kl_divergence(pi_true, pi_env).sum(dim=-1).sum()
             discount_t = torch.ones_like(r_hat) * config.gamma
-            rho_tm1 = torch.exp(pi_true.log_prob(a_tm1) - pi_env.log_prob(a_tm1)).sum(dim=-1).detach().clamp_max(2.)
+            rho_tm1 = torch.exp(pi_true.log_prob(a_tm1) - pi_env.log_prob(a_tm1)).sum(dim=-1)
             v_trace_output = rlego.vtrace_td_error_and_advantage(v_tm1.squeeze(dim=-1), v_t, rewards, discount_t,
-                                                                 rho_tm1
+                                                                 rho_tm1.clamp_max(2.).detach()
                                                                  )
+            pi_loss = - (rho_tm1.clamp_max(1.2).clamp_min(0.8) * v_trace_output.pg_advantage * (1 - config.gamma)).sum()
             wasserstain_distance = w_gaussian(pi_true, pi_env)
             target = v_trace_output.target_tm1 * (1 - config.gamma)
             q_target = v_trace_output.q_estimate * (1 - config.gamma)
             reward_loss = (rewards.detach() - r_hat).pow(2).sum()
             value_loss = 0.5 * (target.detach() - v_tm1).pow(2).sum()
             q_loss = 0.5 * (q_target.detach() - q_tm1).pow(2).sum()
-            total_loss = total_loss + (value_loss + reward_loss + q_loss + pi_loss)
+            total_loss = total_loss + (value_loss + reward_loss + q_loss - pi_loss)
         total_loss = total_loss / batch_size
         return total_loss, {
             "model/model_loss": value_loss.detach(),
             "model/q_loss": q_loss.detach(),
-            "model/pi": pi_loss.detach(),
+            "actor/pi": pi_loss.detach(),
+            "actor/kl": kl.detach(),
             "actor/rho": rho_tm1.mean(),
             "actor/loc": pi_true.mean.mean(),
             "actor/scale": pi_true.variance.mean(),
