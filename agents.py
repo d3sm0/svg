@@ -174,7 +174,7 @@ class SVG:
             reward_loss = (rewards.detach() - r_hat).pow(2).sum()
             value_loss = 0.5 * (target.detach() - v_tm1).pow(2).sum()
             q_loss = 0.5 * (q_target.detach() - q_tm1).pow(2).sum()
-            total_loss = total_loss + (value_loss + reward_loss + q_loss + pi_loss)
+            total_loss = total_loss + (value_loss + reward_loss + q_loss + wasserstain_distance)
         total_loss = total_loss / batch_size
         return total_loss, {
             "model/model_loss": value_loss.detach(),
