@@ -164,10 +164,9 @@ class SVG:
             pi_true = torch.distributions.Normal(*torch.split(pi_true, split_size_or_sections=1, dim=-1))
             pi_loss = torch.distributions.kl_divergence(pi_true, pi_env).sum(dim=-1).sum()
             discount_t = torch.ones_like(r_hat) * config.gamma
-            rho_tm1 = torch.exp(pi_true.log_prob(a_tm1) - pi_env.log_prob(a_tm1)).sum(dim=-1).detach()
+            rho_tm1 = torch.exp(pi_true.log_prob(a_tm1) - pi_env.log_prob(a_tm1)).sum(dim=-1).detach().clamp_max(2.)
             v_trace_output = rlego.vtrace_td_error_and_advantage(v_tm1.squeeze(dim=-1), v_t, rewards, discount_t,
-                                                                 # rho_tm1
-                                                                 torch.ones_like(rho_tm1)
+                                                                 rho_tm1
                                                                  )
             wasserstain_distance = w_gaussian(pi_true, pi_env)
             target = v_trace_output.target_tm1 * (1 - config.gamma)

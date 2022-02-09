@@ -17,7 +17,7 @@ def gather_trajectory(env, agent):
     trajectory = rlego.Trajectory()
     while True:
         pi, plan_info = agent.plan(state)
-        action = pi.loc
+        action = pi.sample()
         # with torch.no_grad():
         #     pi = agent.model(state)
         #     action = pi.loc
