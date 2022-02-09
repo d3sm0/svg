@@ -1,6 +1,7 @@
 import rlego
 import torch
 import torch.optim as optim
+from torch._vmap_internals import vmap
 
 import config
 import utils
@@ -100,24 +101,26 @@ class SVG:
 
     def plan(self, state):
         h = self.model.body(state)
-        transitions, pi = self._unroll(h, horizon=config.plan_horizon, actor=self.model.planner)
+        h_0 = h.unsqueeze(0)
+        transitions, pi = self._unroll(h_0, horizon=config.plan_horizon,
+                                       actor=self.model.planner)
 
-        s_t = torch.stack([t[0] for t in transitions], dim=0)
+        s_t = torch.stack([t[0] for t in transitions], dim=1)  # B x T
         rewards = [t[2] for t in transitions]
         s_tp1 = [t[3] for t in transitions]
-        rewards = torch.stack(rewards)
+        rewards = torch.stack(rewards, dim=1)  # B x T
 
         discount_t = torch.ones_like(rewards) * config.gamma
         v_t = self.model.critic(s_tp1[-1]).squeeze(dim=-1).detach()
-        value = rlego.discounted_returns(rewards, discount_t, v_t) * (1 - config.gamma)
+        value = vmap(rlego.discounted_returns)(rewards, discount_t, v_t) * (1 - config.gamma)
         self.planner_optim.zero_grad()
         with torch.no_grad():
             pi_old = self.model.actor(s_t)
-        pi_true = torch.stack([t[-3] for t in transitions]).squeeze(dim=-1)
+        pi_true = torch.stack([t[-3] for t in transitions], dim=1).squeeze(dim=-1)
         pi_true = torch.distributions.Normal(*torch.split(pi_true, split_size_or_sections=1, dim=-1))
-        kl = torch.distributions.kl_divergence(pi_true, pi_old).sum(dim=-1).sum()
+        kl = torch.distributions.kl_divergence(pi_true, pi_old).sum(dim=-1).sum(1).sum(-1).mean()
 
-        (-value.sum() + kl).backward()
+        (-value.sum(1).mean() + kl).backward()
         self.optim.zero_grad()
         self.planner_optim.step()
         with torch.no_grad():
@@ -142,7 +145,7 @@ class SVG:
             reward_slice = batch.reward[idx:idx + horizon]
             loc, scale = torch.split(torch.stack(batch.info[idx:idx + horizon]), dim=-1, split_size_or_sections=1)
             # TODO this is hack to decrease the variance
-            pi_env = torch.distributions.Normal(loc, scale * config.gamma)
+            pi_env = torch.distributions.Normal(loc, scale)
             v_t = self.model.critic(self.model.body(batch.state[idx + horizon])).detach()
             train_slice.append((state_slice, reward_slice, v_t, pi_env))
 
@@ -154,14 +157,14 @@ class SVG:
             v_tm1 = torch.cat([t[-2] for t in transitions]).squeeze(dim=-1)
             q_tm1 = torch.cat([t[-1] for t in transitions]).squeeze(dim=-1)
             a_tm1 = torch.cat([t[1] for t in transitions])
-            # s_t = torch.cat([t[0] for t in transitions])
+            s_t = torch.cat([t[0] for t in transitions])
             # with torch.no_grad():
             #     pi_env = self.model.planner(s_t)
             pi_true = torch.stack([t[-3] for t in transitions]).squeeze(dim=1)
             pi_true = torch.distributions.Normal(*torch.split(pi_true, split_size_or_sections=1, dim=-1))
             pi_loss = torch.distributions.kl_divergence(pi_true, pi_env).sum(dim=-1).sum()
             discount_t = torch.ones_like(r_hat) * config.gamma
-            rho_tm1 = torch.exp(pi_true.log_prob(a_tm1) - pi_env.log_prob(a_tm1)).sum(dim=-1).exp().detach()
+            rho_tm1 = torch.exp(pi_true.log_prob(a_tm1) - pi_env.log_prob(a_tm1)).sum(dim=-1).detach()
             v_trace_output = rlego.vtrace_td_error_and_advantage(v_tm1.squeeze(dim=-1), v_t, rewards, discount_t,
                                                                  rho_tm1
                                                                  # torch.ones_like(rho_tm1)
@@ -172,7 +175,7 @@ class SVG:
             reward_loss = (rewards.detach() - r_hat).pow(2).sum()
             value_loss = 0.5 * (target.detach() - v_tm1).pow(2).sum()
             q_loss = 0.5 * (q_target.detach() - q_tm1).pow(2).sum()
-            total_loss = total_loss + (value_loss + reward_loss + q_loss + pi_loss )
+            total_loss = total_loss + (value_loss + reward_loss + q_loss + pi_loss)
         total_loss = total_loss / batch_size
         return total_loss, {
             "model/model_loss": value_loss.detach(),
