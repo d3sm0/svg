@@ -7,8 +7,7 @@ import torch
 
 import agents
 import config
-import envs.lqg
-from envs.utils import GymWrapper, TorchWrapper
+from envs.utils import TorchWrapper
 from models import ValueZero
 
 
@@ -16,12 +15,12 @@ def gather_trajectory(env, agent):
     state = env.reset()
     trajectory = rlego.Trajectory()
     while True:
-        pi, plan_info = agent.plan(state)
-        action = pi.sample()
-        # with torch.no_grad():
-        #     pi = agent.model(state)
-        #     action = pi.loc
-        #     plan_info = {}
+        # pi, plan_info = agent.plan(state)
+        # action = pi.loc
+        with torch.no_grad():
+            pi = agent.model(state)
+            action = pi.sample()
+            plan_info = {}
         assert torch.linalg.norm(action) < 1e3
         next_state, reward, done, info = env.step(action)
         trajectory.append(
