@@ -64,10 +64,8 @@ class ValueZero(nn.Module):
         super(ValueZero, self).__init__()
         self.body = nn.Sequential(nn.Linear(obs_dim, h_dim), nn.SiLU(), nn.Linear(h_dim, h_dim), nn.SiLU())
         self.actor = Actor(h_dim, action_dim)
-        self.planner = Actor(h_dim, action_dim)
-        self.planner.load_state_dict(self.actor.state_dict())
         self.dynamics = Dynamics(h_dim, action_dim, h_dim)
-        self.critic = Critic(h_dim)
+        self.critic = Critic(h_dim, 1)
         self.q = QFunction(h_dim, action_dim)
 
     def __call__(self, state):
@@ -77,11 +75,15 @@ class ValueZero(nn.Module):
 class Dynamics(nn.Module):
     def __init__(self, obs_dim, action_dim, h_dim):
         super(Dynamics, self).__init__()
-        self.dynamics = nn.Sequential(nn.Linear(obs_dim + action_dim, h_dim), nn.SiLU(), nn.Linear(h_dim, h_dim),
+        self.dynamics = nn.Sequential(nn.Linear(obs_dim + action_dim, h_dim),
+                                      nn.SiLU(),
+                                      nn.Linear(h_dim, h_dim),
                                       nn.SiLU(),
                                       nn.Linear(h_dim, obs_dim))
-        self.reward = nn.Sequential(nn.Linear(obs_dim + action_dim + obs_dim, h_dim), nn.SiLU(),
-                                    nn.Linear(h_dim, h_dim), nn.SiLU(),
+        self.reward = nn.Sequential(nn.Linear(obs_dim + action_dim + obs_dim, h_dim),
+                                    nn.SiLU(),
+                                    nn.Linear(h_dim, h_dim),
+                                    nn.SiLU(),
                                     nn.Linear(h_dim, 1))
 
     def __call__(self, state, action):

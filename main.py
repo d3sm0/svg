@@ -7,8 +7,7 @@ import torch
 
 import agents
 import config
-import envs.lqg
-from envs.utils import GymWrapper, TorchWrapper
+from envs.utils import TorchWrapper
 from models import ValueZero
 
 
@@ -16,12 +15,12 @@ def gather_trajectory(env, agent):
     state = env.reset()
     trajectory = rlego.Trajectory()
     while True:
-        pi, plan_info = agent.plan(state)
-        action = pi.sample()
-        # with torch.no_grad():
-        #     pi = agent.model(state)
-        #     action = pi.loc
-        #     plan_info = {}
+        # pi, plan_info = agent.plan(state)
+        # action = pi.loc
+        with torch.no_grad():
+            pi = agent.model(state)
+            action = pi.sample()
+            plan_info = {}
         assert torch.linalg.norm(action) < 1e3
         next_state, reward, done, info = env.step(action)
         trajectory.append(
@@ -57,15 +56,8 @@ def run(env, agent, writer):
         if global_step >= config.max_steps:
             break
         trajectory, env_info = gather_trajectory(env, agent)
-
-        #         critic_info = agent.optimize_critic(trajectory,
-        #                                             epochs=config.critic_epochs)
-        #
         model_info = agent.optimize_model(trajectory, epochs=config.critic_epochs)
-        agent.update_target(config.tau)
-        # model_info = {}
-        # ascend the gradient on-policy
-        # actor_info = agent.optimize_actor(trajectory, epochs=config.actor_epochs)
+        # agent.update_target(config.tau)
         writer.add_scalars({
             **env_info,
             # **actor_info,
